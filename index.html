@@ -157,6 +157,41 @@ input[type="date"],input[type="time"]{color-scheme:dark;-webkit-appearance:none;
 .pinbox{display:flex;flex-direction:column;gap:14px;margin-top:8vh}
 .pinbox input{text-align:center;font:600 26px/1 var(--display);letter-spacing:.3em}
 .load{display:flex;flex:1;align-items:center;justify-content:center;color:var(--soft)}
+
+/* Нижнє меню */
+.nav{position:sticky;bottom:0;z-index:6;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:8px var(--gut) calc(8px + env(safe-area-inset-bottom,0px));background:var(--bg);border-top:1px solid #222}
+.nav button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:54px;border:0;border-radius:14px;background:none;color:var(--soft);font-size:11px;font-weight:600;cursor:pointer}
+.nav button[aria-current="page"]{color:var(--fg);background:var(--card)}
+.nav button.plus{background:var(--pink);color:var(--ink)}
+
+/* Сьогодні */
+.cnt{flex:none;min-width:26px;padding:3px 8px;border-radius:999px;background:var(--card2);font:600 12px/1.2 var(--display);text-align:center;color:var(--gold)}
+.task{display:flex;flex-direction:column;gap:4px;width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:14px;background:var(--bg);text-align:left;cursor:pointer}
+.task .l1{display:flex;justify-content:space-between;gap:8px;font-weight:600}
+.task .l2{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;font-size:13px;color:var(--muted)}
+.task .cm{font-size:12px;color:var(--soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.stats div{display:flex;flex-direction:column;gap:4px;padding:12px;border-radius:14px;background:var(--card)}
+.stats b{font:800 22px/1 var(--display);color:var(--gold)}
+.stats span{font-size:12px;line-height:1.3;color:var(--muted)}
+
+/* Календар */
+.calhd{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.cal .wd{font-size:11px;color:var(--soft);text-align:center;padding:2px 0}
+.day{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:46px;padding:0;border:1px solid var(--line);border-radius:12px;background:var(--card);font:600 14px/1 var(--text);cursor:pointer}
+.day.out{visibility:hidden}
+.day.past{color:var(--soft)}
+.day.d6{background:rgba(143,209,158,.18);border-color:rgba(143,209,158,.7)}
+.day.d5{background:rgba(242,210,122,.14);border-color:rgba(242,210,122,.7)}
+.day.now{box-shadow:inset 0 0 0 2px var(--gold)}
+.day[aria-pressed="true"]{background:var(--pink);border-color:var(--pink);color:var(--ink)}
+.day small{font-size:10px;font-weight:700}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+
+/* Картка для команди */
+.kart{margin:0;padding:14px;border-radius:16px;background:var(--card);font:15px/1.5 var(--text);white-space:pre-wrap;word-break:break-word}
 </style>
 </head>
 <body>
@@ -206,6 +241,30 @@ function normPhone(v) {
 }
 const phones = s => String(s || '').split(/\s*[,;]\s*/).map(normPhone).filter(Boolean);
 
+// Instagram зберігаємо в колонці «Контакт» як instagram.com/нік: так його переносить скрипт «Заявки → Клієнти»,
+// а в таблиці це клікабельне посилання. На сайті це окреме поле й кнопка в картці
+const INSTA_RE = /^(?:https?:\/\/)?(?:www\.)?instagram\.com\/([A-Za-z0-9._]+)\/?/i;
+function normInsta(v) {
+  let x = String(v || '').trim();
+  const m = x.match(INSTA_RE);
+  if (m) x = m[1];
+  return x.replace(/^@/, '').replace(/[/?#].*$/, '').trim();
+}
+const instaOk = n => /^[A-Za-z0-9._]{1,30}$/.test(n);
+function splitContact(c) {
+  let insta = '';
+  const other = String(c || '').split(/\s*[,;]\s*/).filter(Boolean).filter(p => {
+    const m = p.match(INSTA_RE);
+    if (m && !insta) { insta = m[1]; return false; }
+    return true;
+  });
+  return { other: other.join(', '), insta };
+}
+function joinContact(other, insta) {
+  const n = normInsta(insta);
+  return [String(other || '').trim(), n ? 'instagram.com/' + n : ''].filter(Boolean).join(', ');
+}
+
 const ICON = {
   back: '<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
   refresh: '<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>',
@@ -215,6 +274,12 @@ const ICON = {
   chat: '<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>',
   send: '<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 4L3 11l7 3 3 7 8-17z"/><path d="M10 14l5-5"/></svg>',
   copy: '<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h9"/></svg>',
+  today: '<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg>',
+  list: '<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>',
+  cal: '<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+  insta: '<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.6" fill="currentColor"/></svg>',
+  next: '<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>',
+  team: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>',
   table: '<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/></svg>'
 };
 
@@ -263,7 +328,7 @@ async function load(silent) {
     const typing = document.activeElement && document.activeElement.id === 'q';
     if (cur === 'list' && !typing) render(true);
     else if (cur === 'list') { const recs = allRecs(); $('#items').innerHTML = itemsHtml(recs, workRecs(recs)); }
-    else if (cur === 'card' && P.nomer) render(true);
+    else if ((cur === 'card' && P.nomer) || cur === 'today' || cur === 'cal' || cur === 'team') render(true);
   } catch (e) {
     if (e.code === 'pin' || e.code === 'locked') { go('pin', { msg: e.message }, true); return; }
     if (!silent || !S.data) toast(e.message, 5000);
@@ -278,6 +343,8 @@ const col = h => H().indexOf(h);
 function rec(r) {   // рядок таблиці → { назва колонки: значення }
   const o = { _sheet: r.sheet, _row: r.row };
   H().forEach((h, i) => { o[h] = r.v[i] == null ? '' : String(r.v[i]); });
+  const sc = splitContact(o['Контакт']);
+  o._contact = sc.other; o._insta = sc.insta;
   return o;
 }
 function allRecs() {
@@ -306,7 +373,8 @@ const F = {
   'Канал': { t: 'chips', list: 'Канал', req: 1, cols: 3 },
   'Джерело': { t: 'chips', list: 'Джерело', req: 1 },
   'Перейшов у месенджер': { t: 'chips', list: 'ТакНі', when: d => d['Канал'] === 'Instagram' },
-  'Контакт': { t: 'contact', req: 1 },
+  'Контакт': { t: 'contact', reqIf: d => !String(d['Instagram'] || '').trim() },
+  'Instagram': { t: 'insta' },
   "Ім'я клієнта": { t: 'text', ph: 'Як звертатися до клієнта' },
   'Іменинник': { t: 'text', ph: "Ім'я іменинника" },
   'Вік': { t: 'chips', list: 'Вік', cols: 5 },
@@ -339,7 +407,7 @@ const visible = (h, d) => { const f = F[h]; return !f || !f.when || f.when(d); }
 
 // Кроки нової заявки. Обов'язкові: Клієнт, Звернення, Що далі. Решту можна пропустити
 const STEPS = [
-  { k: 'client', t: 'Клієнт', f: ['Контакт', "Ім'я клієнта"] },
+  { k: 'client', t: 'Клієнт', f: ['Контакт', 'Instagram', "Ім'я клієнта"] },
   { k: 'source', t: 'Звернення', f: ['Канал', 'Джерело', 'Перейшов у месенджер', 'Дата звернення'], jump: 1 },
   { k: 'kid', t: 'Іменинник', f: ['Іменинник', 'Вік', 'Стать'], opt: 1 },
   { k: 'party', t: 'Свято', f: ['Дата свята', 'Початок', 'Кінець', 'Гостей', 'Вік гостей'], opt: 1 },
@@ -351,7 +419,7 @@ const STEPS = [
 // Розділи картки замовлення (поля з формул показуються, але не редагуються)
 const SECTIONS = [
   { k: 'next', t: 'Що далі', f: ['Статус', 'Наступний контакт', 'Причина відмови', 'Коментар'] },
-  { k: 'client', t: 'Клієнт', f: ["Ім'я клієнта", 'Контакт'] },
+  { k: 'client', t: 'Клієнт', f: ["Ім'я клієнта", 'Контакт', 'Instagram'] },
   { k: 'source', t: 'Звернення', f: ['Дата звернення', 'Канал', 'Джерело', 'Перейшов у месенджер'] },
   { k: 'kid', t: 'Іменинник', f: ['Іменинник', 'Вік', 'Стать'] },
   { k: 'party', t: 'Свято', f: ['Дата свята', 'Днів до свята', 'Початок', 'Кінець', 'Гостей', 'Вік гостей'] },
@@ -390,6 +458,10 @@ function fieldHtml(h) {
       x = `<div class="seg" role="group" aria-label="Тип контакту"><button type="button" data-ctype="phone" aria-pressed="${!nick}">Телефон</button><button type="button" data-ctype="nick" aria-pressed="${nick}">Нік</button></div>
         <input id="${id}" data-in="${esc(h)}" value="${esc(v)}" ${nick ? 'type="text" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="@нік або посилання"' : 'type="tel" inputmode="tel" autocomplete="off" placeholder="0XX XXX XX XX"'}>
         <div id="info-contact">${contactInfo()}</div>`;
+      break;
+    }
+    case 'insta': {
+      x = `<input id="${id}" data-in="${esc(h)}" type="text" value="${esc(v)}" placeholder="@нік або посилання на профіль" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off"><div id="info-insta">${instaInfo()}</div>`;
       break;
     }
     case 'date': {
@@ -433,15 +505,27 @@ function addMin(t, m) {
   return pad(Math.floor(tot / 60)) + ':' + pad(tot % 60);
 }
 
+function instaInfo() {
+  const n = normInsta(D['Instagram']);
+  if (!n) return '';
+  return instaOk(n) ? `<p class="small">Посилання в картці: instagram.com/${esc(n)}</p>` : '<p class="err">Схоже, це не нік Instagram. Потрібні латинські літери, цифри, крапка або _</p>';
+}
+// Контакти поточної форми для пошуку дублів: телефони/нік + Instagram
+function myContacts() {
+  const ins = normInsta(D['Instagram']);
+  return phones(D['Контакт']).concat(ins ? ['instagram.com/' + ins] : [])
+    .map(p => p.toLowerCase().replace(/^@/, '')).filter(p => p.length >= 4);
+}
+const recContacts = o => phones(o['Контакт']).map(p => p.toLowerCase().replace(/^@/, ''));
+
 // Повторний клієнт і дубль заявки
 function contactInfo() {
   const c = String(D['Контакт'] || '').trim();
-  if (c.length < 4) return '';
-  const mine = phones(c).map(p => p.toLowerCase().replace(/^@/, ''));
+  const mine = myContacts();
+  if (!mine.length) return '';
   const self = Number(D['№'] || 0);
-  const hits = allRecs().filter(o => Number(o['№']) !== self && phones(o['Контакт']).some(p => mine.includes(p.toLowerCase().replace(/^@/, ''))));
-  const ph = normPhone(c);
-  const bad = META.contactType !== 'nick' && phones(c).some(p => !/^0\d{9}$/.test(p));
+  const hits = allRecs().filter(o => Number(o['№']) !== self && recContacts(o).some(p => mine.includes(p)));
+  const bad = c && META.contactType !== 'nick' && phones(c).some(p => !/^0\d{9}$/.test(p));
   let out = bad ? '<p class="err">Номер не схожий на український 0XXXXXXXXX. Перевірте або перемкніть на «Нік»</p>' : '';
   if (!hits.length) return out;
   const active = hits.filter(o => o._sheet === 'Заявки' && !CLOSED.includes(o['Статус']));
@@ -485,6 +569,7 @@ function checkInfo() {
 }
 
 function refreshInfo(h) {
+  if (h === 'Instagram') { const el = $('#info-insta'); if (el) el.innerHTML = instaInfo(); h = 'Контакт'; }
   if (h === 'Контакт') { const el = $('#info-contact'); if (el) el.innerHTML = contactInfo(); }
   if (h === 'Дата свята') { const el = $('#info-party'); if (el) el.innerHTML = partyInfo(); }
   if (h === 'Чек, грн' || h === 'Формат' || h === 'Програма') { const el = $('#info-check'); if (el) el.innerHTML = checkInfo(); }
@@ -507,9 +592,9 @@ function onContactRepeat() {
   if (A.name && D["Ім'я клієнта"] === A.name) D["Ім'я клієнта"] = '';
   if (A.src && D['Джерело'] === A.src) D['Джерело'] = '';
   META.auto = {};
-  const mine = phones(D['Контакт']).map(p => p.toLowerCase());
+  const mine = myContacts();
   if (!mine.length) return;
-  const past = allRecs().filter(o => (o._sheet === 'Клієнти' || CLOSED.includes(o['Статус'])) && phones(o['Контакт']).some(p => mine.includes(p.toLowerCase())));
+  const past = allRecs().filter(o => (o._sheet === 'Клієнти' || CLOSED.includes(o['Статус'])) && recContacts(o).some(p => mine.includes(p)));
   if (past.length) {
     const o = past.find(o => o["Ім'я клієнта"]);
     if (o && !D["Ім'я клієнта"]) { D["Ім'я клієнта"] = o["Ім'я клієнта"]; META.auto.name = o["Ім'я клієнта"]; }
@@ -552,11 +637,11 @@ function go(name, params, replace) {
 }
 function back() {
   if (STACK.length > 1) { history.back(); return; }
-  go('list', {}, true);
+  go('today', {}, true);
 }
 window.addEventListener('popstate', () => {
   if (STACK.length > 1) STACK.pop();
-  const s = STACK[STACK.length - 1] || { name: 'list', params: {} };
+  const s = STACK[STACK.length - 1] || { name: 'today', params: {} };
   show(s.name, s.params);
 });
 function show(name, params) {
@@ -606,7 +691,7 @@ AFTER.pin = () => {
     try {
       const d = await api('init');
       d.at = Date.now(); S.data = d; store.set('data', d); store.set('pin', pin);
-      STACK.length = 0; go('list');
+      STACK.length = 0; go('today');
     } catch (err) {
       S.pin = ''; store.del('pin');
       b.disabled = false; b.textContent = 'Увійти';
@@ -660,7 +745,7 @@ R.list = () => {
   <div class="list" id="items">${itemsHtml(recs, work)}</div>
   ${at ? `<p class="stamp">Дані з таблиці на ${pad(at.getHours())}:${pad(at.getMinutes())}</p>` : ''}
 </div>
-<div class="dock"><button class="btn pink" type="button" data-act="new">${ICON.plus} Нова заявка</button></div>`;
+${navHtml('list')}`;
 };
 function itemsHtml(recs, work) {
   let items;
@@ -686,6 +771,163 @@ AFTER.list = () => {
     $('#filters').hidden = !!S.q.trim();
   });
   if (S.data && (!S.data.at || Date.now() - S.data.at > 60000)) load(true);
+};
+
+/* --- Нижнє меню --- */
+function navHtml(a) {
+  const it = (k, t, ic) => `<button type="button" data-tab="${k}"${a === k ? ' aria-current="page"' : ''}>${ic}<span>${t}</span></button>`;
+  return `<nav class="nav" aria-label="Розділи">${it('today', 'Сьогодні', ICON.today)}${it('list', 'Заявки', ICON.list)}<button type="button" class="plus" data-act="new">${ICON.plus}<span>Нова</span></button>${it('cal', 'Календар', ICON.cal)}</nav>`;
+}
+const topMain = () => `<div class="top line"><img class="logo" src="logo.svg" alt="ТОШО!?"><span class="toptitle"></span><button class="ib${S.loading ? ' spin' : ''}" id="reload" data-act="reload" aria-label="Оновити з таблиці">${ICON.refresh}</button></div>`;
+const autoLoad = () => { if (S.data && (!S.data.at || Date.now() - S.data.at > 60000)) load(true); };
+
+/* --- Сьогодні: дані з аркуша «Сьогодні» --- */
+R.today = () => {
+  if (!S.data) return topMain() + '<div class="load">Завантажую…</div>' + navHtml('today');
+  const tb = S.data.todayBlock;
+  const now = new Date();
+  const wd = ['неділя', 'понеділок', 'вівторок', 'середа', 'четвер', "п'ятниця", 'субота'][now.getDay()];
+  let body = '';
+  if (!tb) body = '<p class="empty">Аркуш «Сьогодні» не знайдено в таблиці</p>';
+  else {
+    const groups = [];
+    tb.tasks.forEach(t => { let g = groups.find(x => x.t === t.t); if (!g) groups.push(g = { t: t.t, items: [] }); g.items.push(t); });
+    body = groups.length ? groups.map(g => `<section class="box"><div class="hd"><h3>${esc(g.t)}</h3><span class="cnt">${g.items.length}</span></div>
+      ${g.items.map(t => `<button type="button" class="task" data-open="${esc(t.nomer)}"><span class="l1"><span>${esc(t.name || 'Без імені')}</span><span class="no mute">№${esc(t.nomer)}</span></span>
+        <span class="l2">${stPill(t.status)}${t.date ? `<span>свято ${esc(t.date)}</span>` : ''}${t.contact ? `<span>${esc(splitContact(t.contact).other || t.contact)}</span>` : ''}</span>
+        ${t.comment ? `<span class="cm">${esc(t.comment)}</span>` : ''}</button>`).join('')}</section>`).join('')
+      : '<div class="note ok"><b>На сьогодні задач немає</b><span class="mute">Усі контакти заплановані, нагадувань і брифів на сьогодні немає.</span></div>';
+    if (tb.stats.length) body += `<h3>Сьогодні в цифрах</h3><div class="stats">${tb.stats.map(x => `<div><b>${esc(x.n)}</b><span>${esc(x.t)}</span></div>`).join('')}</div>`;
+  }
+  const at = S.data.at ? new Date(S.data.at) : null;
+  return `${topMain()}
+<div class="body"><h1 tabindex="-1">Сьогодні</h1><p class="lead">${wd}, ${esc(fmtD(now))}</p>
+${body}
+${at ? `<p class="stamp">Задачі з аркуша «Сьогодні» на ${pad(at.getHours())}:${pad(at.getMinutes())}</p>` : ''}
+</div>${navHtml('today')}`;
+};
+AFTER.today = autoLoad;
+
+/* --- Календар броней: статуси 5 і 6 --- */
+const MONTHS = ['Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень', 'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'];
+const MONTHS_GEN = ['січня', 'лютого', 'березня', 'квітня', 'травня', 'червня', 'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня'];
+const WEEKDAYS = ['неділя', 'понеділок', 'вівторок', 'середа', 'четвер', "п'ятниця", 'субота'];
+function bookings() {
+  const m = {};
+  allRecs().filter(o => PAY_ST.includes(o['Статус']) && parseD(o['Дата свята'])).forEach(o => { (m[o['Дата свята']] = m[o['Дата свята']] || []).push(o); });
+  Object.values(m).forEach(a => a.sort((x, y) => String(x['Початок']).padStart(5, '0').localeCompare(String(y['Початок']).padStart(5, '0'))));
+  return m;
+}
+R.cal = () => {
+  if (!S.data) return topMain() + '<div class="load">Завантажую…</div>' + navHtml('cal');
+  const t0 = today0();
+  if (!S.calM) S.calM = { y: t0.getFullYear(), m: t0.getMonth() };
+  if (!S.calDay) S.calDay = fmtD(t0);
+  const { y, m } = S.calM;
+  const B = bookings();
+  const first = new Date(y, m, 1);
+  const shift = (first.getDay() + 6) % 7;
+  const days = new Date(y, m + 1, 0).getDate();
+  let cells = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'].map(w => `<span class="wd">${w}</span>`).join('');
+  for (let i = 0; i < shift; i++) cells += '<span class="day out"></span>';
+  let n5 = 0, n6 = 0;
+  for (let dd = 1; dd <= days; dd++) {
+    const d = new Date(y, m, dd), key = fmtD(d), b = B[key] || [];
+    const has6 = b.some(o => o['Статус'] === '6. Заброньовано');
+    b.forEach(o => o['Статус'] === '6. Заброньовано' ? n6++ : n5++);
+    const cls = ['day', b.length ? (has6 ? 'd6' : 'd5') : '', d < t0 ? 'past' : '', +d === +t0 ? 'now' : ''].join(' ');
+    cells += `<button type="button" class="${cls}" data-day="${key}" aria-pressed="${S.calDay === key}" aria-label="${dd} ${MONTHS_GEN[m]}${b.length ? ', свят: ' + b.length : ''}">${dd}${b.length ? `<small>${b.length > 1 ? b.length + (b.length < 5 ? ' свята' : ' свят') : (b[0]['Початок'] || '•')}</small>` : ''}</button>`;
+  }
+  const sel = parseD(S.calDay);
+  const list = B[S.calDay] || [];
+  const dayTitle = sel ? `${WEEKDAYS[sel.getDay()]}, ${sel.getDate()} ${MONTHS_GEN[sel.getMonth()]}` : '';
+  return `${topMain()}
+<div class="body">
+  <div class="calhd"><button class="ib" type="button" data-act="cal-prev" aria-label="Попередній місяць">${ICON.back}</button><h2 tabindex="-1">${MONTHS[m]} ${y}</h2><button class="ib" type="button" data-act="cal-next" aria-label="Наступний місяць">${ICON.next}</button></div>
+  <div class="cal">${cells}</div>
+  <div class="legend"><span><i style="background:rgba(143,209,158,.6)"></i>заброньовано: ${n6}</span><span><i style="background:rgba(242,210,122,.6)"></i>очікує оплату: ${n5}</span></div>
+  <h3>${esc(dayTitle)}</h3>
+  <div class="list">${list.length ? list.map(o => `<button type="button" class="item" data-open="${esc(o['№'])}">
+    <span class="l1"><span class="nm">${esc((o['Початок'] || '?') + (o['Кінець'] ? '–' + o['Кінець'] : ''))} · ${esc(o["Ім'я клієнта"] || 'Без імені')}</span><span class="no">№${esc(o['№'])}</span></span>
+    <span class="l2">${stPill(o['Статус'])}${o['Іменинник'] ? `<span>${esc(o['Іменинник'])}${o['Вік'] ? ', ' + esc(o['Вік']) : ''}</span>` : ''}${o['Програма'] ? `<span>${esc(o['Програма'])}</span>` : ''}${o['Формат'] === 'Під ключ' ? '<span>під ключ</span>' : ''}</span>
+    ${o['Адреса'] || o['Район'] ? `<span class="l2">${esc(o['Адреса'] || o['Район'])}</span>` : ''}</button>`).join('') : '<p class="empty" style="padding:14px">Броней на цей день немає</p>'}</div>
+</div>${navHtml('cal')}`;
+};
+AFTER.cal = autoLoad;
+
+/* --- Картка свята для команди (як аркуш «Картка» в таблиці) --- */
+const rokiv = n => { const a = n % 10, b = n % 100; return (a === 1 && b !== 11) ? 'рік' : (a >= 2 && a <= 4 && (b < 12 || b > 14)) ? 'роки' : 'років'; };
+const ditei = n => { const a = n % 10, b = n % 100; return (a === 1 && b !== 11) ? 'дитина' : (a >= 2 && a <= 4 && (b < 12 || b > 14)) ? 'дитини' : 'дітей'; };
+function avtoProhrama(prog, guests, dop, rayon) {
+  const out = [];
+  String(prog || '').split(' + ').map(x => x.trim()).filter(Boolean).forEach(p => {
+    if (p === 'МК') out.push('мк «…» — ' + (guests || '…') + ' учасників | 1,5 год');
+    else if (/^Вгадай/.test(p)) out.push('гра «Вгадай що всередині!?» — 40-60 хв');
+    else if (p === 'Під ключ' || p === 'Інше') out.push('…');
+    else out.push('гра «' + p + '» — 1,5 год');
+  });
+  String(dop || '').split(',').map(x => x.trim()).filter(x => x && x !== 'Немає' && !/^Кілька/.test(x))
+    .forEach(x => out.push(x.charAt(0).toLowerCase() + x.slice(1)));
+  if (rayon === 'Київська область') out.push('трансфер команди');
+  return out;
+}
+function kartka(o) {
+  const d = h => String(o[h] || '').trim();
+  const num = h => { const x = digits(d(h)); return x ? Number(x) : 0; };
+  const fm = x => String(Math.round(x)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  const missing = [];
+  const lines = ['Ваше замовлення:'];
+  const date = d('Дата свята').replace(/^(\d{2})\.(\d{2})\.\d{2}(\d{2})$/, '$1.$2.$3');
+  if (!date) missing.push('Дата свята');
+  let time = d('Початок');
+  if (time && d('Кінець')) time += '-' + d('Кінець');
+  else if (time) missing.push('Кінець');
+  else missing.push('Початок');
+  lines.push([date, time].filter(Boolean).join(' '));
+  lines.push('');
+  const who = d('Стать') === 'Дівчинка' ? 'Іменинниця' : 'Іменинник';
+  let l = '📍' + who + ': ' + (d('Іменинник') || '…');
+  const age = num('Вік'); if (age) l += ' ' + age + ' ' + rokiv(age);
+  const guests = num('Гостей'); if (guests) l += ', ' + guests + ' ' + ditei(guests);
+  const ga = d('Вік гостей'); if (ga) l += ', від ' + ga + (/рок|рік/.test(ga) ? '' : ' років');
+  lines.push(l + '.');
+  const adr = d('Адреса');
+  if (!adr) missing.push('Адреса');
+  lines.push('🔺Локація: ' + (adr || [d('Місце'), d('Район')].filter(Boolean).join(', ') || '…') + '.');
+  lines.push('');
+  lines.push('Програма:');
+  let items = d('Склад програми')
+    ? d('Склад програми').split(/\n+/).map(x => x.replace(/^[•\-\s]+/, '').trim()).filter(Boolean)
+    : avtoProhrama(d('Програма'), guests, d('Допродажі'), d('Район'));
+  if (!items.length) { items = ['…']; missing.push('Програма'); }
+  items.forEach((x, i) => lines.push('• ' + x + (i === items.length - 1 ? '.' : '')));
+  lines.push('');
+  const chek = num('Чек, грн') ? fm(num('Чек, грн')) : '';
+  const pre = num('Передоплата, грн');
+  const rest = d('Залишок до оплати') !== '' ? fm(num('Залишок до оплати')) : '';
+  if (!chek) missing.push('Чек');
+  if (chek && pre > 0) lines.push('Разом: ' + chek + ' грн.-' + fm(pre) + ' грн.(п/о)=' + rest + ' грн.');
+  else lines.push('Разом: ' + (chek ? chek + ' грн.' : 'уточнюється'));
+  lines.push([d('Контакт'), d("Ім'я клієнта")].filter(Boolean).join(' '));
+  return { text: lines.join('\n'), missing };
+}
+async function copyText(t) {
+  try { await navigator.clipboard.writeText(t); return true; } catch (e) {}
+  try {
+    const ta = document.createElement('textarea'); ta.value = t; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select(); const ok = document.execCommand('copy'); ta.remove(); return ok;
+  } catch (e) { return false; }
+}
+R.team = () => {
+  const o = findRec(P.nomer);
+  if (!o) return `<div class="top"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button></div><div class="body"><p class="empty">Замовлення не знайдено</p></div>`;
+  const k = kartka(o);
+  return `<div class="top"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><span class="toptitle">№${esc(o['№'])} · Картка для команди</span><span class="sp44"></span></div>
+<div class="body"><h2 tabindex="-1">Картка для команди</h2>
+${k.missing.length ? `<div class="note warn"><b>Не заповнено: ${esc(k.missing.join(', '))}</b><span class="mute">Допишіть у картці замовлення, і текст оновиться.</span></div>` : ''}
+<pre class="kart" id="kart">${esc(k.text)}</pre></div>
+<div class="dock"><button class="btn pink" type="button" data-act="kart-copy">${ICON.copy} Копіювати</button>
+${navigator.share ? '<button class="btn2" type="button" data-act="kart-share">Поділитися</button>' : ''}</div>`;
 };
 
 /* --- Нова заявка --- */
@@ -766,7 +1008,9 @@ function packNew() {
     out['Допродажі'] = 'Кілька (у коментарі)';
     out['Коментар'] = [out['Коментар'], 'Допродажі: ' + META.multi.join(', ')].filter(Boolean).join('\n');
   }
-  if (out['Контакт']) out['Контакт'] = META.contactType === 'nick' ? out['Контакт'] : normPhone(out['Контакт']);
+  const c = out['Контакт'] ? (META.contactType === 'nick' ? out['Контакт'] : normPhone(out['Контакт'])) : '';
+  out['Контакт'] = joinContact(c, D['Instagram']);
+  delete out['Instagram'];
   return out;
 }
 async function saveNew() {
@@ -775,8 +1019,9 @@ async function saveNew() {
     const r = await api('create', { id: NEW.id, data: packNew() });
     putRow('Заявки', r.row, r.v);
     store.del('draft');
+    setTimeout(() => load(true), 300);   // оновити «Сьогодні»: формули перераховує таблиця
     D = {}; META = {};
-    STACK.length = 0; STACK.push({ name: 'list', params: {} });
+    STACK.length = 0; STACK.push({ name: 'today', params: {} });
     go('done', { nomer: r.nomer, rejected: r.rejected || [] });
   } catch (e) {
     if (e.code === 'pin') { go('pin', { msg: e.message }); return; }
@@ -789,35 +1034,42 @@ ${P.rejected.length ? `<div class="note warn" style="text-align:left"><b>Таб�
 <div class="spacer"></div></div>
 <div class="dock"><button class="btn pink" type="button" data-act="new-fresh">${ICON.plus} Додати ще одне</button>
 <button class="btn2" type="button" data-open="${esc(P.nomer)}">Відкрити картку</button>
-<button class="link" type="button" data-act="home">До списку</button></div>`;
+<button class="link" type="button" data-act="home">Готово</button></div>`;
 
 /* --- Картка замовлення --- */
-function contactLinks(c) {
-  const p = phones(c).find(x => /^0\d{9}$/.test(x));
+function contactLinks(o) {
+  const b = [];
+  const p = phones(o._contact).find(x => /^0\d{9}$/.test(x));
   if (p) {
     const intl = '380' + p.slice(1);
-    return `<div class="acts"><a href="tel:+${intl}">${ICON.phone}Дзвінок</a><a href="viber://chat?number=%2B${intl}">${ICON.chat}Viber</a><a href="https://t.me/+${intl}" target="_blank" rel="noopener">${ICON.send}Telegram</a><a href="https://wa.me/${intl}" target="_blank" rel="noopener">${ICON.chat}WhatsApp</a></div>`;
+    b.push(`<a href="tel:+${intl}">${ICON.phone}Дзвінок</a>`, `<a href="viber://chat?number=%2B${intl}">${ICON.chat}Viber</a>`,
+      `<a href="https://t.me/+${intl}" target="_blank" rel="noopener">${ICON.send}Telegram</a>`, `<a href="https://wa.me/${intl}" target="_blank" rel="noopener">${ICON.chat}WhatsApp</a>`);
+  } else if (o._contact) {
+    b.push(`<button type="button" data-copy="${esc(o._contact)}">${ICON.copy}Копіювати</button>`);
   }
-  if (c) return `<div class="acts" style="grid-template-columns:1fr"><button type="button" data-copy="${esc(c)}">${ICON.copy}Копіювати контакт</button></div>`;
-  return '';
+  if (o._insta) b.push(`<a href="https://www.instagram.com/${encodeURIComponent(o._insta)}/" target="_blank" rel="noopener">${ICON.insta}Instagram</a>`);
+  if (!b.length) return '';
+  return `<div class="acts" style="grid-template-columns:repeat(${b.length},minmax(0,1fr))${b.length > 4 ? ';font-size:11px' : ''}">${b.join('')}</div>`;
 }
+const cardVal = (o, h) => h === 'Контакт' ? o._contact : h === 'Instagram' ? (o._insta ? '@' + o._insta : '') : (o[h] || '');
 R.card = () => {
   const o = findRec(P.nomer);
   if (!o) return `<div class="top"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><span class="toptitle">№${esc(P.nomer)}</span><span class="sp44"></span></div><div class="body"><p class="empty">Замовлення не знайдено. Оновіть дані.</p></div>`;
   const nb = ncBadge(o);
   const link = S.data.ssId && S.data.gids ? `https://docs.google.com/spreadsheets/d/${S.data.ssId}/edit#gid=${S.data.gids[o._sheet]}&range=A${o._row}` : '';
   const secs = SECTIONS.map(s => {
-    const rows = s.f.filter(h => col(h) > -1 && String(o[h] || '').trim()).map(h => `<dt>${esc(h.replace(', грн', ''))}</dt><dd class="${FORMULA().includes(h) ? 'f' : ''}">${esc(h.endsWith('грн') || h === 'Мін. передоплата' || h === 'Залишок до оплати' ? (o[h] + ' грн') : o[h])}</dd>`).join('');
+    const rows = s.f.filter(h => (col(h) > -1 || h === 'Instagram') && String(cardVal(o, h)).trim()).map(h => `<dt>${esc(h.replace(', грн', ''))}</dt><dd class="${FORMULA().includes(h) ? 'f' : ''}">${esc(h.endsWith('грн') || h === 'Мін. передоплата' || h === 'Залишок до оплати' ? (o[h] + ' грн') : cardVal(o, h))}</dd>`).join('');
     return `<section class="box"><div class="hd"><h3>${esc(s.t)}</h3><button type="button" class="ed" data-edit="${s.k}">Змінити</button></div>${rows ? `<dl class="kv">${rows}</dl>` : '<p class="small">Не заповнено</p>'}</section>`;
   }).join('');
   return `<div class="top line"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><span class="toptitle">№${esc(o['№'])}${o._sheet === 'Клієнти' ? ' · архів' : ''}</span><button class="ib${S.loading ? ' spin' : ''}" id="reload" data-act="reload" aria-label="Оновити з таблиці">${ICON.refresh}</button></div>
 <div class="body">
   <div class="hero"><h2 tabindex="-1">${esc(o["Ім'я клієнта"] || 'Без імені')}</h2>
-    <span class="sub">${esc(o['Контакт'] || 'контакту немає')}${o['Іменинник'] ? ' · ' + esc(o['Іменинник']) + (o['Вік'] ? ', ' + esc(o['Вік']) : '') : ''}</span>
+    <span class="sub">${esc(o._contact || (o._insta ? '@' + o._insta : 'контакту немає'))}${o['Іменинник'] ? ' · ' + esc(o['Іменинник']) + (o['Вік'] ? ', ' + esc(o['Вік']) : '') : ''}</span>
     <span class="l2" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">${stPill(o['Статус'])}${nb}</span></div>
-  ${contactLinks(o['Контакт'])}
+  ${contactLinks(o)}
   ${o['Наступна дія'] ? `<div class="todo"><span>Наступна дія</span>${esc(o['Наступна дія'])}</div>` : ''}
   <div class="row2"><button class="btn2" type="button" data-act="status">Змінити статус</button><button class="btn2" type="button" data-act="nextc">Наступний контакт</button></div>
+  <button class="btn2" type="button" data-act="team">${ICON.team} Картка для команди</button>
   ${secs}
   ${link ? `<a class="link" href="${esc(link)}" target="_blank" rel="noopener">Відкрити рядок у таблиці</a>` : ''}
 </div>`;
@@ -834,7 +1086,8 @@ function openEdit(key) {
   if (!o) return;
   const set = EDIT_SETS[key] || SECTIONS.find(s => s.k === key);
   D = {}; H().forEach(h => { D[h] = o[h] || ''; });
-  META = { contactType: /[a-zа-яіїєґ@_]/i.test(o['Контакт']) ? 'nick' : 'phone', orig: Object.assign({}, D), sheet: o._sheet, autoCheck: Number(digits(o['Чек, грн'])) || null, autoSklad: o['Склад програми'] };
+  D['Контакт'] = o._contact; D['Instagram'] = o._insta;
+  META = { contactType: /[a-zа-яіїєґ@_]/i.test(o._contact) ? 'nick' : 'phone', orig: Object.assign({}, D), origContact: o['Контакт'] || '', sheet: o._sheet, autoCheck: Number(digits(o['Чек, грн'])) || null, autoSklad: o['Склад програми'] };
   go('edit', { mode: 'edit', key, nomer: o['№'], title: set.t, f: set.f.filter(h => !FORMULA().includes(h)) });
 }
 R.edit = () => {
@@ -859,7 +1112,11 @@ async function saveEdit() {
   };
   const same = (h, v) => (['Чек, грн', 'Передоплата, грн', 'Гостей'].includes(h) ? digits(orig[h]) : String(orig[h] || '').trim()) === v;
   // Поле, яке зникло з форми (напр. причина відмови після зміни статусу), не чіпаємо
-  fields.forEach(h => { const v = val(h); if (!same(h, v)) changes[h] = { from: orig[h] || '', to: v }; });
+  fields.forEach(h => { if (h === 'Контакт' || h === 'Instagram') return; const v = val(h); if (!same(h, v)) changes[h] = { from: orig[h] || '', to: v }; });
+  if (fields.includes('Контакт') || fields.includes('Instagram')) {
+    const c = joinContact(val('Контакт'), D['Instagram']);
+    if (c !== String(META.origContact).trim()) changes['Контакт'] = { from: META.origContact, to: c };
+  }
   if (META.multi && META.multi.length > 1) {
     changes['Допродажі'] = { from: orig['Допродажі'] || '', to: 'Кілька (у коментарі)' };
     const base = changes['Коментар'] ? changes['Коментар'].to : String(orig['Коментар'] || '').trim();
@@ -873,9 +1130,15 @@ async function saveEdit() {
     const probs = [];
     (r.conflicts || []).forEach(c => probs.push(`«${c.field}» хтось змінив у таблиці, там зараз: ${c.now || 'порожньо'}. Ваше значення не записано.`));
     (r.rejected || []).forEach(c => probs.push(`«${c.field}»: таблиця не прийняла «${c.value}».`));
-    if (probs.length) { P.err = probs.join(' '); META.orig = rec({ sheet: r.sheet, row: r.row, v: r.v }); render(); return; }
+    if (probs.length) {
+      P.err = probs.join(' ');
+      const o2 = rec({ sheet: r.sheet, row: r.row, v: r.v });
+      META.orig = Object.assign({}, o2, { 'Контакт': o2._contact, 'Instagram': o2._insta }); META.origContact = o2['Контакт'];
+      render(); return;
+    }
     toast(r.sheet !== META.sheet ? 'Збережено. Замовлення вже в «' + r.sheet + '»' : 'Збережено');
     back();
+    setTimeout(() => load(true), 300);
   } catch (e) {
     if (e.code === 'pin') { go('pin', { msg: e.message }); return; }
     P.err = e.message; render();
@@ -888,10 +1151,12 @@ view.addEventListener('click', e => {
   if (!t) return;
   const d = t.dataset;
   if (d.open) { go('card', { nomer: Number(d.open) }); return; }
+  if (d.tab) { if (cur !== d.tab) { STACK.length = 0; go(d.tab); } else window.scrollTo(0, 0); return; }
+  if (d.day) { S.calDay = d.day; render(true); return; }
   if (d.filter) { S.filter = d.filter; render(true); return; }
   if (d.edit) { openEdit(d.edit); return; }
   if (d.goto !== undefined) { go('step', { mode: 'new', i: Number(d.goto), fromSum: 1 }); return; }
-  if (d.copy) { try { navigator.clipboard.writeText(d.copy); toast('Скопійовано'); } catch (x) {} return; }
+  if (d.copy) { copyText(d.copy).then(ok => ok && toast('Скопійовано')); return; }
   if (d.ctype) { META.contactType = d.ctype; render(true); const i = view.querySelector('[data-in="Контакт"]'); if (i) i.focus(); saveDraft(); return; }
   if (d.multi) {
     const v = d.v; let sel = META.multi || (D[d.multi] && D[d.multi] !== 'Кілька (у коментарі)' ? [D[d.multi]] : []);
@@ -909,10 +1174,21 @@ view.addEventListener('click', e => {
   }
   switch (d.act) {
     case 'back': back(); break;
-    case 'home': STACK.length = 0; go('list'); break;
+    case 'home': STACK.length = 0; go('today'); break;
+    case 'cal-prev': case 'cal-next': {
+      let { y, m } = S.calM; m += d.act === 'cal-next' ? 1 : -1;
+      if (m < 0) { m = 11; y--; } if (m > 11) { m = 0; y++; }
+      S.calM = { y, m };
+      const t0 = today0();
+      S.calDay = (t0.getFullYear() === y && t0.getMonth() === m) ? fmtD(t0) : fmtD(new Date(y, m, 1));
+      render(); break;
+    }
+    case 'team': go('team', { nomer: P.nomer }); break;
+    case 'kart-copy': { const o = findRec(P.nomer); if (o) copyText(kartka(o).text).then(ok => toast(ok ? 'Скопійовано. Вставте в чат команди' : 'Не вдалося скопіювати, виділіть текст вручну')); break; }
+    case 'kart-share': { const o = findRec(P.nomer); if (o && navigator.share) navigator.share({ text: kartka(o).text }).catch(() => {}); break; }
     case 'reload': load(); break;
     case 'new': { const dr = store.get('draft'); if (draftHasData(dr)) go('draft'); else startNew(true); break; }
-    case 'new-fresh': store.del('draft'); STACK.length = 0; STACK.push({ name: 'list', params: {} }); startNew(true); break;
+    case 'new-fresh': store.del('draft'); STACK.length = 0; STACK.push({ name: 'today', params: {} }); startNew(true); break;
     case 'draft-continue': STACK.pop(); startNew(false); break;
     case 'draft-new': store.del('draft'); STACK.pop(); startNew(true); break;
     case 'next': case 'skip': case 'jump': {
@@ -940,6 +1216,7 @@ view.addEventListener('input', e => {
     D[h] = v;
     if (String(v).trim()) clearErr(h);
     if (h === "Ім'я клієнта" && META.auto) META.auto.name = '';
+    if (h === 'Instagram' && String(v).trim()) clearErr('Контакт');
     refreshInfo(h);
     saveDraft();
   }
@@ -948,6 +1225,7 @@ view.addEventListener('change', e => {
   const t = e.target;
   if (t.dataset.date) { D[t.dataset.date] = isoToD(t.value); render(true); saveDraft(); }
   else if (t.dataset.in === 'Початок') { render(true); }
+  else if (t.dataset.in === 'Instagram') { onContactRepeat(); refreshInfo('Instagram'); saveDraft(); }
   else if (t.dataset.in === 'Контакт') {
     if (META.contactType !== 'nick') { const n = normPhone(t.value); if (n !== t.value) { t.value = n; D['Контакт'] = n; } }
     onContactRepeat(); refreshInfo('Контакт'); saveDraft();
@@ -958,8 +1236,8 @@ view.addEventListener('change', e => {
 (function init() {
   try { history.replaceState({ n: 1 }, ''); } catch (e) {}
   if (!S.pin) { STACK.push({ name: 'pin', params: {} }); show('pin', {}); return; }
-  STACK.push({ name: 'list', params: {} });
-  show('list', {});
+  STACK.push({ name: 'today', params: {} });
+  show('today', {});
   load(!!S.data);
 })();
 </script>
