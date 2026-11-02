@@ -1,0 +1,967 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#121212">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>ТОШО!? CRM</title>
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Unbounded:wght@600;800&display=swap">
+<style>
+/* Кольори, шрифти й кнопки як у клієнтському квізі. Тонкі суцільні рожеві рамки кнопок */
+:root{
+  --page:#0B0B0B; --bg:#121212; --card:#1B1B1B; --card2:#232323; --fg:#FFF9F8;
+  --muted:rgba(255,249,248,.74); --soft:rgba(255,249,248,.58); --line:rgba(255,249,248,.16);
+  --gold:#C5A880; --pink:#F8A4B8; --ink:#121212; --red:#FF8A8A; --green:#8FD19E; --yellow:#F2D27A; --blue:#9EC5F0;
+  --display:'Unbounded','Arial Black',system-ui,sans-serif;
+  --text:'Onest',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --gut:max(16px,env(safe-area-inset-left,0px));
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{background:var(--page)}
+body{margin:0;color:var(--fg);font-family:var(--text);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+button{font:inherit;color:inherit}
+.app{max-width:560px;margin:0 auto;min-height:100vh;min-height:100dvh;background:var(--bg);display:flex;flex-direction:column}
+@media (min-width:600px){.app{border-left:1px solid #222;border-right:1px solid #222}}
+#view{flex:1;display:flex;flex-direction:column;transition:opacity .18s ease}
+#view.fade{opacity:0}
+@media (prefers-reduced-motion:reduce){#view{transition:none}}
+
+/* Верхня панель і прогрес */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);min-height:56px;display:flex;align-items:center;gap:8px;padding:0 var(--gut) 0 max(6px,env(safe-area-inset-left,0px));border-bottom:1px solid transparent}
+.top.line{border-bottom-color:#222}
+.ib{width:44px;height:44px;flex:none;border:0;border-radius:12px;background:transparent;color:var(--fg);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.ib:active{background:var(--card)}
+.ib.spin svg{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.bar{flex:1;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px}
+.bar i{height:4px;border-radius:2px;background:rgba(255,249,248,.15)}
+.bar i.on{background:var(--gold)}
+.count{min-width:34px;text-align:right;font:600 12px/1 var(--display);color:var(--gold);font-variant-numeric:tabular-nums}
+.toptitle{flex:1;min-width:0;font:600 14px/1.2 var(--display);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.logo{height:26px;width:auto;margin-left:10px}
+.sp44{width:44px;flex:none}
+
+.body{flex:1;display:flex;flex-direction:column;gap:16px;padding:18px var(--gut) 28px}
+h1,h2,h3{margin:0;font-family:var(--display);font-weight:800;text-transform:uppercase;text-wrap:balance}
+h1{font-size:clamp(22px,6.6vw,28px);line-height:1.12}
+h2{font-size:20px;line-height:1.18}
+h3{font-size:13px;font-weight:600;line-height:1.2;color:var(--gold)}
+h1:focus,h2:focus{outline:none}
+.lead{margin:0;color:var(--muted)}
+.small{margin:0;font-size:13px;line-height:1.45;color:var(--soft)}
+.spacer{flex:1;min-height:4px}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+/* Кнопки */
+.btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:56px;padding:0 20px;border:0;border-radius:999px;background:var(--fg);color:var(--ink);font:600 15px/1.1 var(--display);text-transform:uppercase;letter-spacing:.02em;text-decoration:none;text-align:center;cursor:pointer}
+.btn:disabled{opacity:.55;cursor:default}
+.btn.pink{background:var(--pink)}
+.btn2{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:50px;padding:0 18px;border:1px solid var(--pink);border-radius:999px;background:transparent;color:var(--fg);font:600 15px/1.2 var(--text);text-decoration:none;text-align:center;cursor:pointer}
+.btn2:active,.chip:active,.opt:active,.item:active{transform:scale(.985)}
+.link{align-self:center;padding:10px;border:0;background:none;color:var(--gold);font:500 14px var(--text);text-decoration:underline;text-underline-offset:4px;cursor:pointer}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.dock{position:sticky;bottom:0;z-index:4;display:flex;flex-direction:column;gap:8px;padding:12px var(--gut) calc(12px + env(safe-area-inset-bottom,0px));background:linear-gradient(to top,var(--bg) 78%,rgba(18,18,18,0))}
+
+/* Поля */
+.field{display:flex;flex-direction:column;gap:8px}
+.flabel{font-size:13px;color:var(--muted)}
+.flabel b{color:var(--pink);font-weight:600}
+input,textarea{width:100%;min-height:52px;padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--fg);font:16px/1.4 var(--text)}
+textarea{min-height:92px;resize:vertical}
+input:focus,textarea:focus{outline:none;border-color:var(--gold)}
+input[aria-invalid="true"]{border-color:var(--pink)}
+input[type="date"],input[type="time"]{color-scheme:dark;-webkit-appearance:none;appearance:none}
+.chips{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.chips.c1{grid-template-columns:1fr}
+.chips.c3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.chips.c5{grid-template-columns:repeat(5,minmax(0,1fr))}
+.chips.scroll{display:flex;overflow-x:auto;scrollbar-width:none;margin:0 calc(-1 * var(--gut));padding:0 var(--gut) 2px}
+.chips.scroll::-webkit-scrollbar{display:none}
+.chips.scroll .chip{flex:none;padding:0 14px}
+.chip{min-height:48px;padding:6px 12px;border:1px solid var(--pink);border-radius:999px;background:transparent;color:var(--fg);font:600 14px/1.2 var(--text);cursor:pointer;text-align:center;transition:background .12s ease,color .12s ease}
+.chips.c1 .chip{border-radius:14px;text-align:left;padding:10px 16px}
+.chip[aria-pressed="true"]{background:var(--pink);color:var(--ink)}
+.chip.sm{min-height:40px;font-size:13px}
+.err{margin:0;font-size:13px;color:var(--pink)}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border:1px solid var(--line);border-radius:999px}
+.seg button{min-height:40px;border:0;border-radius:999px;background:transparent;font-weight:600;font-size:14px;cursor:pointer;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--card2);color:var(--fg)}
+
+/* Програми з прайсу */
+.grp{font-size:12px;color:var(--soft);margin:6px 2px -2px}
+.opt{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:52px;padding:10px 16px;border:1px solid var(--pink);border-radius:14px;background:transparent;text-align:left;cursor:pointer}
+.opt .t{font-weight:600}
+.opt .p{flex:none;font:600 13px/1 var(--display);color:var(--gold);font-variant-numeric:tabular-nums}
+.opt[aria-pressed="true"]{background:var(--pink);color:var(--ink)}
+.opt[aria-pressed="true"] .p{color:var(--ink)}
+
+/* Підказки під полями */
+.note{display:flex;flex-direction:column;gap:6px;padding:12px 14px;border-radius:14px;background:var(--card);font-size:14px;line-height:1.4}
+.note.warn{border:1px solid var(--pink)}
+.note.ok{border:1px solid rgba(143,209,158,.5)}
+.note.gold{border:1px solid rgba(197,168,128,.55)}
+.note b{font-weight:600}
+.note .act{align-self:flex-start;margin-top:2px;padding:8px 14px;border:1px solid var(--pink);border-radius:999px;background:transparent;font-weight:600;font-size:13px;cursor:pointer}
+.mute{color:var(--soft)}
+
+/* Список заявок */
+.search{position:relative}
+.search input{padding-left:44px;min-height:48px;border-radius:999px}
+.search svg{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--soft);pointer-events:none}
+.list{display:flex;flex-direction:column;gap:8px}
+.item{display:flex;flex-direction:column;gap:6px;width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:16px;background:var(--card);text-align:left;cursor:pointer}
+.item .l1{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.item .nm{font-weight:600;font-size:15px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .no{flex:none;font:600 11px/1 var(--display);color:var(--soft)}
+.item .l2{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-size:13px;color:var(--muted)}
+.st{display:inline-flex;align-items:center;min-height:22px;padding:2px 9px;border:1px solid currentColor;border-radius:999px;font-size:12px;font-weight:600;line-height:1.2;white-space:nowrap}
+.s1{color:var(--pink)}.s2,.s3,.s4{color:var(--gold)}.s5{color:var(--yellow)}.s6{color:var(--green)}.s7{color:var(--blue)}.s8,.s9{color:var(--soft)}.s10,.sx{color:var(--red)}
+.nc{font-size:12px;font-weight:600}
+.nc.red{color:var(--red)}.nc.pink{color:var(--pink)}.nc.yellow{color:var(--yellow)}.nc.dim{color:var(--soft)}
+.empty{padding:30px 10px;text-align:center;color:var(--soft)}
+.stamp{font-size:12px;color:var(--soft);text-align:center}
+
+/* Картка замовлення */
+.hero{display:flex;flex-direction:column;gap:8px}
+.hero .sub{color:var(--muted);font-size:14px}
+.acts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.acts a,.acts button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:62px;border:1px solid var(--pink);border-radius:14px;background:transparent;color:var(--fg);font-size:12px;font-weight:600;text-decoration:none;cursor:pointer}
+.box{display:flex;flex-direction:column;gap:10px;padding:14px;border:1px solid var(--line);border-radius:18px;background:var(--card)}
+.box .hd{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.box .ed{padding:6px 12px;border:1px solid var(--pink);border-radius:999px;background:transparent;font-size:13px;font-weight:600;cursor:pointer}
+.kv{display:grid;grid-template-columns:minmax(96px,38%) 1fr;gap:6px 12px;margin:0;font-size:14px}
+.kv dt{color:var(--soft)}
+.kv dd{margin:0;white-space:pre-wrap;word-break:break-word}
+.kv dd.f{color:var(--gold)}
+.todo{padding:12px 14px;border-radius:14px;background:rgba(197,168,128,.12);border:1px solid rgba(197,168,128,.45);font-size:14px}
+.todo span{display:block;font-size:12px;color:var(--gold);margin-bottom:2px}
+
+/* Повідомлення */
+#toast{position:fixed;left:50%;bottom:calc(88px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);z-index:50;max-width:min(92vw,480px);padding:12px 18px;border-radius:14px;background:var(--fg);color:var(--ink);font-weight:600;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s ease,transform .2s ease}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+.fail{display:flex;flex-direction:column;gap:10px;padding:14px 16px;border:1px solid var(--pink);border-radius:16px}
+.fail p{margin:0;font-size:14px}
+.sum{display:flex;flex-direction:column;gap:10px}
+.done{align-items:center;text-align:center;justify-content:center}
+.big{font:800 46px/1 var(--display);color:var(--gold)}
+.pinbox{display:flex;flex-direction:column;gap:14px;margin-top:8vh}
+.pinbox input{text-align:center;font:600 26px/1 var(--display);letter-spacing:.3em}
+.load{display:flex;flex:1;align-items:center;justify-content:center;color:var(--soft)}
+</style>
+</head>
+<body>
+<div class="app"><main id="view" aria-live="polite"></main></div>
+<div id="toast" role="status"></div>
+<script>
+/* ====== НАЛАШТУВАННЯ ====== */
+const CONFIG = {
+  endpoint: 'https://script.google.com/macros/s/AKfycbxIAF93Esi0pIZAHZ-MFCNekx3zc0tq7BsMIOwTG9rNhPtwmePNmAyoCGjX4UPe2ZFoYw/exec',   // адреса вебзастосунку Apps Script «ТОШО CRM» (…/exec)
+};
+
+/* ====== ДОПОМІЖНЕ ====== */
+const $ = s => document.querySelector(s);
+const view = $('#view');
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const store = {
+  get(k) { try { const v = localStorage.getItem('tosho_' + k); return v ? JSON.parse(v) : null; } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem('tosho_' + k, JSON.stringify(v)); } catch (e) {} },
+  del(k) { try { localStorage.removeItem('tosho_' + k); } catch (e) {} }
+};
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+const reduced = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+const digits = s => String(s == null ? '' : s).replace(/\D/g, '');
+const money = n => (n === '' || n == null || isNaN(n)) ? '' : Math.round(Number(n)).toLocaleString('uk-UA').replace(/ | /g, ' ');
+const pad = n => String(n).padStart(2, '0');
+const fmtD = d => pad(d.getDate()) + '.' + pad(d.getMonth() + 1) + '.' + d.getFullYear();
+const parseD = s => { const m = String(s || '').match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/); return m ? new Date(+m[3], +m[2] - 1, +m[1]) : null; };
+const isoToD = s => { const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? m[3] + '.' + m[2] + '.' + m[1] : ''; };
+const dToIso = s => { const d = parseD(s); return d ? d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) : ''; };
+const today0 = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
+const addDays = (n) => { const d = today0(); d.setDate(d.getDate() + n); return fmtD(d); };
+const daysTo = s => { const d = parseD(s); return d ? Math.round((d - today0()) / 86400000) : null; };
+const dayWord = n => { const a = Math.abs(n) % 10, b = Math.abs(n) % 100; return (a === 1 && b !== 11) ? 'день' : (a >= 2 && a <= 4 && (b < 12 || b > 14)) ? 'дні' : 'днів'; };
+
+// Телефон до 0XXXXXXXXX, як у скрипті таблиці. Нік лишаємо як є
+function normPhone(v) {
+  const s = String(v == null ? '' : v).trim();
+  if (!s) return s;
+  return s.split(/\s*[,;]\s*/).map(p => {
+    if (/[a-zа-яіїєґ@_]/i.test(p)) return p;
+    let d = p.replace(/\D/g, '');
+    if (d.length === 12 && d.indexOf('380') === 0) d = '0' + d.slice(3);
+    else if (d.length === 11 && d.indexOf('80') === 0) d = d.slice(1);
+    else if (d.length === 9 && d[0] !== '0') d = '0' + d;
+    return (d.length === 10 && d[0] === '0') ? d : p;
+  }).join(', ');
+}
+const phones = s => String(s || '').split(/\s*[,;]\s*/).map(normPhone).filter(Boolean);
+
+const ICON = {
+  back: '<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
+  refresh: '<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>',
+  search: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>',
+  plus: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  phone: '<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>',
+  chat: '<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>',
+  send: '<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 4L3 11l7 3 3 7 8-17z"/><path d="M10 14l5-5"/></svg>',
+  copy: '<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h9"/></svg>',
+  table: '<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/></svg>'
+};
+
+/* ====== ДАНІ ====== */
+const S = {
+  pin: store.get('pin') || '',
+  device: store.get('device') || (() => { const d = uid(); store.set('device', d); return d; })(),
+  data: store.get('data'),     // останні завантажені дані таблиці (щоб сайт відкривався миттєво)
+  loading: false,
+  filter: 'work',
+  q: ''
+};
+
+async function api(action, payload) {
+  if (!CONFIG.endpoint) throw Object.assign(new Error('Сайт ще не підключено до таблиці (немає адреси скрипта)'), { code: 'config' });
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 40000);
+  let res;
+  try {
+    res = await fetch(CONFIG.endpoint, {
+      method: 'POST', redirect: 'follow', signal: ctrl.signal,
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(Object.assign({ action, pin: S.pin, device: S.device }, payload || {}))
+    });
+  } catch (e) {
+    throw Object.assign(new Error(navigator.onLine === false ? 'Немає інтернету. Введене збережено на телефоні, спробуйте ще раз, коли з\'явиться зв\'язок' : 'Не вдалося зв\'язатися з таблицею. Перевірте інтернет і спробуйте ще раз'), { code: 'net' });
+  } finally { clearTimeout(t); }
+  let j;
+  try { j = await res.json(); } catch (e) { throw Object.assign(new Error('Таблиця відповіла незрозуміло. Спробуйте ще раз'), { code: 'bad' }); }
+  if (!j.ok) {
+    if (j.code === 'pin') { S.pin = ''; store.del('pin'); }
+    throw Object.assign(new Error(j.error || 'Помилка'), { code: j.code });
+  }
+  return j;
+}
+
+async function load(silent) {
+  if (S.loading) return;
+  S.loading = true;
+  const btn = $('#reload'); if (btn) btn.classList.add('spin');
+  try {
+    const d = await api('init');
+    d.at = Date.now();
+    S.data = d;
+    store.set('data', d);
+    const typing = document.activeElement && document.activeElement.id === 'q';
+    if (cur === 'list' && !typing) render(true);
+    else if (cur === 'list') { const recs = allRecs(); $('#items').innerHTML = itemsHtml(recs, workRecs(recs)); }
+    else if (cur === 'card' && P.nomer) render(true);
+  } catch (e) {
+    if (e.code === 'pin' || e.code === 'locked') { go('pin', { msg: e.message }, true); return; }
+    if (!silent || !S.data) toast(e.message, 5000);
+  } finally {
+    S.loading = false;
+    const b = $('#reload'); if (b) b.classList.remove('spin');
+  }
+}
+
+const H = () => (S.data && S.data.headers) || [];
+const col = h => H().indexOf(h);
+function rec(r) {   // рядок таблиці → { назва колонки: значення }
+  const o = { _sheet: r.sheet, _row: r.row };
+  H().forEach((h, i) => { o[h] = r.v[i] == null ? '' : String(r.v[i]); });
+  return o;
+}
+function allRecs() {
+  if (!S.data) return [];
+  return S.data.zayavky.map(r => rec(Object.assign({ sheet: 'Заявки' }, r)))
+    .concat(S.data.klienty.map(r => rec(Object.assign({ sheet: 'Клієнти' }, r))));
+}
+function findRec(nomer) { return allRecs().find(o => Number(o['№']) === Number(nomer)); }
+function putRow(sheet, row, v) {
+  const n = Number(v[0]);
+  ['zayavky', 'klienty'].forEach(k => { S.data[k] = S.data[k].filter(r => Number(r.v[0]) !== n); });
+  const k = sheet === 'Клієнти' ? 'klienty' : 'zayavky';
+  S.data[k].push({ row, v });
+  S.data[k].sort((a, b) => a.row - b.row);
+  store.set('data', S.data);
+}
+const L = name => (S.data && S.data.lists && S.data.lists[name]) || [];
+const CLOSED = ['8. Проведено', '10. Закрито', 'Помилково внесено'];
+const PAY_ST = ['5. Очікує оплату', '6. Заброньовано'];
+const stNum = s => { const n = parseInt(s, 10); return isNaN(n) ? 'x' : n; };
+const stPill = s => s ? `<span class="st s${stNum(s)}">${esc(s)}</span>` : '<span class="st sx">без статусу</span>';
+
+/* ====== ПОЛЯ ====== */
+const F = {
+  'Дата звернення': { t: 'date', quick: [['Сьогодні', 0], ['Вчора', -1]] },
+  'Канал': { t: 'chips', list: 'Канал', req: 1, cols: 3 },
+  'Джерело': { t: 'chips', list: 'Джерело', req: 1 },
+  'Перейшов у месенджер': { t: 'chips', list: 'ТакНі', when: d => d['Канал'] === 'Instagram' },
+  'Контакт': { t: 'contact', req: 1 },
+  "Ім'я клієнта": { t: 'text', ph: 'Як звертатися до клієнта' },
+  'Іменинник': { t: 'text', ph: "Ім'я іменинника" },
+  'Вік': { t: 'chips', list: 'Вік', cols: 5 },
+  'Стать': { t: 'chips', list: 'Стать', cols: 3 },
+  'Дата свята': { t: 'date', info: 'party' },
+  'Початок': { t: 'time', quick: ['12:00', '14:00', '15:00', '16:00', '17:00', '18:00'] },
+  'Кінець': { t: 'time', plus: 1 },
+  'Гостей': { t: 'num', ph: 'Скільки гостей' },
+  'Вік гостей': { t: 'text', ph: 'Наприклад 10-12' },
+  'Район': { t: 'chips', list: 'Район' },
+  'Місце': { t: 'chips', list: 'Місце' },
+  'Адреса': { t: 'area', ph: 'Адреса або посилання на геолокацію' },
+  'Формат': { t: 'chips', list: 'Формат' },
+  'Програма': { t: 'program' },
+  'Склад програми': { t: 'area', ph: 'Що входить у свято' },
+  'Допродажі': { t: 'multi', list: 'Допродажі' },
+  'Чек, грн': { t: 'money', info: 'check' },
+  'Передоплата, грн': { t: 'money' },
+  'Дата передоплати': { t: 'date', quick: [['Сьогодні', 0], ['Вчора', -1]] },
+  'Залишок отримано': { t: 'chips', list: 'ТакНі' },
+  'Бриф отримано': { t: 'chips', list: 'ТакНі' },
+  'Відгук отримано': { t: 'chips', list: 'ТакНі' },
+  'Статус': { t: 'chips', list: 'Статус' },
+  'Наступний контакт': { t: 'date', quick: [['Сьогодні', 0], ['Завтра', 1], ['Через 2 дні', 2], ['Через тиждень', 7]], reqIf: d => !CLOSED.includes(d['Статус'] || '1. Нова') },
+  'Причина відмови': { t: 'chips', list: 'Причина', when: d => d['Статус'] === '10. Закрито', reqIf: d => d['Статус'] === '10. Закрито' },
+  'Коментар': { t: 'area', ph: 'На чому зупинилися: що надіслали, що чекаємо від клієнта' }
+};
+const isReq = (h, d) => { const f = F[h]; return !!(f && (f.req || (f.reqIf && f.reqIf(d)))); };
+const visible = (h, d) => { const f = F[h]; return !f || !f.when || f.when(d); };
+
+// Кроки нової заявки. Обов'язкові: Клієнт, Звернення, Що далі. Решту можна пропустити
+const STEPS = [
+  { k: 'client', t: 'Клієнт', f: ['Контакт', "Ім'я клієнта"] },
+  { k: 'source', t: 'Звернення', f: ['Канал', 'Джерело', 'Перейшов у месенджер', 'Дата звернення'], jump: 1 },
+  { k: 'kid', t: 'Іменинник', f: ['Іменинник', 'Вік', 'Стать'], opt: 1 },
+  { k: 'party', t: 'Свято', f: ['Дата свята', 'Початок', 'Кінець', 'Гостей', 'Вік гостей'], opt: 1 },
+  { k: 'place', t: 'Місце', f: ['Район', 'Місце', 'Адреса'], opt: 1 },
+  { k: 'prog', t: 'Програма', f: ['Формат', 'Програма', 'Склад програми', 'Допродажі', 'Чек, грн'], opt: 1 },
+  { k: 'next', t: 'Що далі', f: ['Статус', 'Наступний контакт', 'Причина відмови', 'Коментар'] },
+  { k: 'pay', t: 'Оплата', f: ['Передоплата, грн', 'Дата передоплати'], opt: 1, when: d => PAY_ST.includes(d['Статус']) }
+];
+// Розділи картки замовлення (поля з формул показуються, але не редагуються)
+const SECTIONS = [
+  { k: 'next', t: 'Що далі', f: ['Статус', 'Наступний контакт', 'Причина відмови', 'Коментар'] },
+  { k: 'client', t: 'Клієнт', f: ["Ім'я клієнта", 'Контакт'] },
+  { k: 'source', t: 'Звернення', f: ['Дата звернення', 'Канал', 'Джерело', 'Перейшов у месенджер'] },
+  { k: 'kid', t: 'Іменинник', f: ['Іменинник', 'Вік', 'Стать'] },
+  { k: 'party', t: 'Свято', f: ['Дата свята', 'Днів до свята', 'Початок', 'Кінець', 'Гостей', 'Вік гостей'] },
+  { k: 'place', t: 'Місце', f: ['Район', 'Місце', 'Адреса'] },
+  { k: 'prog', t: 'Програма', f: ['Формат', 'Програма', 'Склад програми', 'Допродажі', 'Чек, грн'] },
+  { k: 'pay', t: 'Оплата і після свята', f: ['Мін. передоплата', 'Передоплата, грн', 'Дата передоплати', 'Залишок до оплати', 'Залишок отримано', 'Бриф отримано', 'Відгук отримано', 'Нагадати про ДН'] }
+];
+const FORMULA = () => (S.data && S.data.formulaCols) || ['Наступна дія', 'Днів до свята', 'Мін. передоплата', 'Залишок до оплати', 'Нагадати про ДН'];
+
+/* ====== РЕНДЕР ПОЛІВ ====== */
+// D — об'єкт зі значеннями, який редагується (нова заявка або розділ картки)
+let D = {};
+let META = {};   // службове: тип контакту, автопідстановки, кілька допродажів
+
+function fieldHtml(h) {
+  const f = F[h] || { t: 'text' };
+  const v = D[h] == null ? '' : String(D[h]);
+  const id = 'f' + Math.abs(hash(h));
+  let x = '';
+  switch (f.t) {
+    case 'chips': {
+      let opts = L(f.list);
+      if (v && !opts.includes(v)) opts = opts.concat([v]);
+      const cls = f.cols === 1 ? 'c1' : f.cols === 3 ? 'c3' : f.cols === 5 ? 'c5' : '';
+      x = `<div class="chips ${cls}" role="group" aria-label="${esc(h)}">${opts.map(o => `<button type="button" class="chip" data-f="${esc(h)}" data-v="${esc(o)}" aria-pressed="${o === v}">${esc(o)}</button>`).join('')}</div>`;
+      break;
+    }
+    case 'multi': {
+      const sel = META.multi || (v ? [v] : []);
+      x = `<div class="chips" role="group" aria-label="${esc(h)}">${L(f.list).filter(o => o !== 'Кілька (у коментарі)').map(o => `<button type="button" class="chip" data-multi="${esc(h)}" data-v="${esc(o)}" aria-pressed="${sel.includes(o)}">${esc(o)}</button>`).join('')}</div>
+        ${sel.length > 1 ? '<p class="small">У таблицю піде «Кілька (у коментарі)», перелік допишеться в коментар</p>' : ''}`;
+      break;
+    }
+    case 'contact': {
+      const nick = META.contactType === 'nick';
+      x = `<div class="seg" role="group" aria-label="Тип контакту"><button type="button" data-ctype="phone" aria-pressed="${!nick}">Телефон</button><button type="button" data-ctype="nick" aria-pressed="${nick}">Нік</button></div>
+        <input id="${id}" data-in="${esc(h)}" value="${esc(v)}" ${nick ? 'type="text" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="@нік або посилання"' : 'type="tel" inputmode="tel" autocomplete="off" placeholder="0XX XXX XX XX"'}>
+        <div id="info-contact">${contactInfo()}</div>`;
+      break;
+    }
+    case 'date': {
+      x = (f.quick ? `<div class="chips ${f.quick.length > 2 ? '' : ''}">${f.quick.map(([t, n]) => `<button type="button" class="chip sm" data-f="${esc(h)}" data-v="${addDays(n)}" aria-pressed="${v === addDays(n)}">${t}</button>`).join('')}</div>` : '')
+        + `<input id="${id}" type="date" data-date="${esc(h)}" value="${dToIso(v)}">`
+        + (f.info === 'party' ? `<div id="info-party">${partyInfo()}</div>` : '');
+      break;
+    }
+    case 'time': {
+      const plus = f.plus && D['Початок'] ? [['+1,5 год', 90], ['+3,5 год', 210]].map(([t, m]) => { const e = addMin(D['Початок'], m); return `<button type="button" class="chip sm" data-f="${esc(h)}" data-v="${e}" aria-pressed="${v === e}">${t} · ${e}</button>`; }).join('') : '';
+      const quick = f.quick ? f.quick.map(t => `<button type="button" class="chip sm" data-f="${esc(h)}" data-v="${t}" aria-pressed="${v === t}">${t}</button>`).join('') : '';
+      x = (plus || quick ? `<div class="chips ${quick ? 'c3' : ''}">${plus}${quick}</div>` : '') + `<input id="${id}" type="time" data-in="${esc(h)}" value="${esc(v)}">`;
+      break;
+    }
+    case 'program': {
+      const groups = [];
+      (S.data ? S.data.price : []).forEach(p => {
+        let g = groups.find(x => x.note === p.note);
+        if (!g) groups.push(g = { note: p.note, items: [] });
+        g.items.push(p);
+      });
+      x = groups.map(g => `<div class="grp">${esc(g.note)}</div>` + g.items.map(p => `<button type="button" class="opt" data-f="${esc(h)}" data-v="${esc(p.name)}" aria-pressed="${p.name === v}"><span class="t">${esc(p.name)}</span><span class="p">${p.price ? money(p.price) : ''}</span></button>`).join('')).join('');
+      if (v && !(S.data.price || []).some(p => p.name === v)) x = `<button type="button" class="opt" aria-pressed="true"><span class="t">${esc(v)}</span></button>` + x;
+      break;
+    }
+    case 'num': case 'money':
+      x = `<input id="${id}" data-in="${esc(h)}" inputmode="numeric" value="${esc(f.t === 'money' ? money(digits(v)) : digits(v))}" placeholder="${esc(f.ph || '')}">` + (f.info === 'check' ? `<div id="info-check">${checkInfo()}</div>` : '');
+      break;
+    case 'area':
+      x = `<textarea id="${id}" data-in="${esc(h)}" placeholder="${esc(f.ph || '')}">${esc(v)}</textarea>`;
+      break;
+    default:
+      x = `<input id="${id}" data-in="${esc(h)}" type="text" value="${esc(v)}" placeholder="${esc(f.ph || '')}" autocomplete="off">`;
+  }
+  return `<div class="field" data-field="${esc(h)}"><label class="flabel" for="${id}">${esc(h)}${isReq(h, D) ? ' <b>*</b>' : ''}</label>${x}<p class="err" hidden></p></div>`;
+}
+function hash(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return h; }
+function addMin(t, m) {
+  const x = String(t).match(/^(\d{1,2}):(\d{2})/); if (!x) return '';
+  const tot = (+x[1] * 60 + +x[2] + m) % 1440;
+  return pad(Math.floor(tot / 60)) + ':' + pad(tot % 60);
+}
+
+// Повторний клієнт і дубль заявки
+function contactInfo() {
+  const c = String(D['Контакт'] || '').trim();
+  if (c.length < 4) return '';
+  const mine = phones(c).map(p => p.toLowerCase().replace(/^@/, ''));
+  const self = Number(D['№'] || 0);
+  const hits = allRecs().filter(o => Number(o['№']) !== self && phones(o['Контакт']).some(p => mine.includes(p.toLowerCase().replace(/^@/, ''))));
+  const ph = normPhone(c);
+  const bad = META.contactType !== 'nick' && phones(c).some(p => !/^0\d{9}$/.test(p));
+  let out = bad ? '<p class="err">Номер не схожий на український 0XXXXXXXXX. Перевірте або перемкніть на «Нік»</p>' : '';
+  if (!hits.length) return out;
+  const active = hits.filter(o => o._sheet === 'Заявки' && !CLOSED.includes(o['Статус']));
+  const past = hits.filter(o => !active.includes(o)).sort((a, b) => (parseD(b['Дата свята']) || 0) - (parseD(a['Дата свята']) || 0));
+  if (active.length) {
+    const o = active[0];
+    out += `<div class="note warn"><b>Цей контакт уже в роботі: №${esc(o['№'])}</b><span>${esc(o["Ім'я клієнта"] || 'Без імені')} · ${esc(o['Статус'] || 'без статусу')}${o['Дата свята'] ? ' · свято ' + esc(o['Дата свята']) : ''}</span><span class="mute">Можливо, нова заявка не потрібна, а треба оновити наявну.</span><button type="button" class="act" data-open="${esc(o['№'])}">Відкрити №${esc(o['№'])}</button></div>`;
+  }
+  if (past.length) {
+    const o = past[0];
+    out += `<div class="note ok"><b>Повторний клієнт</b><span>${esc(o["Ім'я клієнта"] || 'Без імені')}${o['Дата свята'] ? ' · останнє свято ' + esc(o['Дата свята']) : ''}${o['Іменинник'] ? ' · ' + esc(o['Іменинник']) : ''} (№${esc(o['№'])})</span></div>`;
+  }
+  return out;
+}
+
+// Брони на дату свята (статуси 5 і 6) і скільки днів до свята
+function partyInfo() {
+  const v = D['Дата свята'];
+  if (!parseD(v)) return '';
+  const n = daysTo(v);
+  const when = n === 0 ? 'Свято сьогодні' : n === 1 ? 'Свято завтра' : n > 0 ? `До свята ${n} ${dayWord(n)}` : `Дата минула ${-n} ${dayWord(n)} тому`;
+  const self = Number(D['№'] || 0);
+  const b = allRecs().filter(o => o['Дата свята'] === v && PAY_ST.includes(o['Статус']) && Number(o['№']) !== self);
+  let out = `<p class="small">${when}</p>`;
+  if (b.length) {
+    const turnkey = b.some(o => o['Формат'] === 'Під ключ');
+    out += `<div class="note warn"><b>На цю дату вже є ${b.length === 1 ? 'бронь' : 'брони: ' + b.length}</b>${b.map(o => `<span>${esc((o['Початок'] || '?') + (o['Кінець'] ? '–' + o['Кінець'] : ''))} · ${esc(o["Ім'я клієнта"] || o['Іменинник'] || 'Без імені')} · ${esc(o['Статус'])}${o['Програма'] ? ' · ' + esc(o['Програма']) : ''}</span>`).join('')}${turnkey ? '<span class="mute">Є свято під ключ: команда проводить одне таке на день.</span>' : ''}</div>`;
+  } else {
+    out += '<div class="note ok"><span>Броней на цю дату немає</span></div>';
+  }
+  return out;
+}
+
+// Підказка мінімальної передоплати (таблиця порахує сама)
+function checkInfo() {
+  const c = Number(digits(D['Чек, грн']));
+  if (!c) return '';
+  const tk = D['Формат'] === 'Під ключ' || D['Програма'] === 'Під ключ';
+  const m = tk ? c * 0.5 : Math.min(c, Math.max(c * 0.3, 3000));
+  return `<p class="small">Мінімальна передоплата ≈ ${money(m)} грн (${tk ? 'під ключ 50%' : 'стандарт 30%, не менше 3 000'})</p>`;
+}
+
+function refreshInfo(h) {
+  if (h === 'Контакт') { const el = $('#info-contact'); if (el) el.innerHTML = contactInfo(); }
+  if (h === 'Дата свята') { const el = $('#info-party'); if (el) el.innerHTML = partyInfo(); }
+  if (h === 'Чек, грн' || h === 'Формат' || h === 'Програма') { const el = $('#info-check'); if (el) el.innerHTML = checkInfo(); }
+}
+
+// Вибір програми підставляє чек, склад і формат, якщо менеджер не правив їх вручну
+function onProgram(name) {
+  const p = (S.data.price || []).find(x => x.name === name);
+  if (p && p.price && (!D['Чек, грн'] || Number(digits(D['Чек, грн'])) === META.autoCheck)) { D['Чек, грн'] = String(p.price); META.autoCheck = p.price; }
+  if (!D['Склад програми'] || D['Склад програми'] === META.autoSklad) { D['Склад програми'] = name; META.autoSklad = name; }
+  if (name === 'Під ключ' && L('Формат').includes('Під ключ')) D['Формат'] = 'Під ключ';
+  else if (!D['Формат'] && name !== 'Інше' && L('Формат').includes('Стандарт')) D['Формат'] = 'Стандарт';
+}
+
+// Повторний клієнт (є в архіві або закрите замовлення): підставляємо ім'я і джерело «Повторний».
+// Якщо контакт змінили, підстановки прибираємо. Тільки для нової заявки
+function onContactRepeat() {
+  if (P.mode !== 'new') return;
+  const A = META.auto || {};
+  if (A.name && D["Ім'я клієнта"] === A.name) D["Ім'я клієнта"] = '';
+  if (A.src && D['Джерело'] === A.src) D['Джерело'] = '';
+  META.auto = {};
+  const mine = phones(D['Контакт']).map(p => p.toLowerCase());
+  if (!mine.length) return;
+  const past = allRecs().filter(o => (o._sheet === 'Клієнти' || CLOSED.includes(o['Статус'])) && phones(o['Контакт']).some(p => mine.includes(p.toLowerCase())));
+  if (past.length) {
+    const o = past.find(o => o["Ім'я клієнта"]);
+    if (o && !D["Ім'я клієнта"]) { D["Ім'я клієнта"] = o["Ім'я клієнта"]; META.auto.name = o["Ім'я клієнта"]; }
+    if (!D['Джерело'] && L('Джерело').includes('Повторний')) { D['Джерело'] = 'Повторний'; META.auto.src = 'Повторний'; }
+  }
+  const el = document.querySelector('[data-in="Ім\'я клієнта"]'); if (el) el.value = D["Ім'я клієнта"] || '';
+}
+function clearErr(h) {
+  const box = document.querySelector(`[data-field="${CSS.escape(h)}"] .err`);
+  if (box && !box.hidden) { box.hidden = true; box.textContent = ''; }
+}
+
+function validate(fields) {
+  let first = null;
+  fields.forEach(h => {
+    if (!visible(h, D)) return;
+    const box = document.querySelector(`[data-field="${CSS.escape(h)}"] .err`);
+    const miss = isReq(h, D) && !String(D[h] || '').trim();
+    if (box) { box.hidden = !miss; box.textContent = miss ? 'Заповніть це поле' : ''; }
+    if (miss && !first) first = h;
+  });
+  if (first) {
+    const el = document.querySelector(`[data-field="${CSS.escape(first)}"]`);
+    if (el) el.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'center' });
+  }
+  return !first;
+}
+
+/* ====== ЕКРАНИ ====== */
+let cur = '';
+let P = {};
+const STACK = [];
+const R = {};
+
+function go(name, params, replace) {
+  if (replace) STACK.pop();
+  STACK.push({ name, params: params || {} });
+  try { history[replace ? 'replaceState' : 'pushState']({ n: STACK.length }, ''); } catch (e) {}
+  show(name, params || {});
+}
+function back() {
+  if (STACK.length > 1) { history.back(); return; }
+  go('list', {}, true);
+}
+window.addEventListener('popstate', () => {
+  if (STACK.length > 1) STACK.pop();
+  const s = STACK[STACK.length - 1] || { name: 'list', params: {} };
+  show(s.name, s.params);
+});
+function show(name, params) {
+  const paint = () => {
+    cur = name; P = params;
+    view.innerHTML = R[name]();
+    view.classList.remove('fade');
+    window.scrollTo(0, 0);
+    const h = view.querySelector('h1,h2'); if (h) h.focus({ preventScroll: true });
+    if (AFTER[name]) AFTER[name]();
+  };
+  if (reduced || !view.innerHTML) return paint();
+  view.classList.add('fade');
+  setTimeout(paint, 160);
+}
+function render(keepScroll) {
+  const y = window.scrollY;
+  view.innerHTML = R[cur]();
+  if (AFTER[cur]) AFTER[cur]();
+  if (keepScroll) window.scrollTo(0, y);
+}
+const AFTER = {};
+
+let toastT;
+function toast(msg, ms) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('on');
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), ms || 2600);
+}
+
+/* --- PIN --- */
+R.pin = () => `<div class="top"><img class="logo" src="logo.svg" alt="ТОШО!?"></div>
+<div class="body"><form class="pinbox" id="pinform" autocomplete="off">
+  <h1 tabindex="-1">Вхід</h1>
+  <p class="lead">Введіть PIN. Телефон запам'ятає його, наступного разу вводити не треба.</p>
+  <input id="pin" type="password" inputmode="numeric" autocomplete="one-time-code" maxlength="12" aria-label="PIN" required>
+  ${P.msg ? `<p class="err">${esc(P.msg)}</p>` : ''}
+  <button class="btn" type="submit" id="pinbtn">Увійти</button>
+</form></div>`;
+AFTER.pin = () => {
+  $('#pin').focus();
+  $('#pinform').addEventListener('submit', async e => {
+    e.preventDefault();
+    const pin = $('#pin').value.trim();
+    if (!pin) return;
+    const b = $('#pinbtn'); b.disabled = true; b.textContent = 'Перевіряю…';
+    S.pin = pin;
+    try {
+      const d = await api('init');
+      d.at = Date.now(); S.data = d; store.set('data', d); store.set('pin', pin);
+      STACK.length = 0; go('list');
+    } catch (err) {
+      S.pin = ''; store.del('pin');
+      b.disabled = false; b.textContent = 'Увійти';
+      const box = view.querySelector('.err') || Object.assign(document.createElement('p'), { className: 'err' });
+      box.textContent = err.message; $('#pin').after(box); $('#pin').value = ''; $('#pin').focus();
+    }
+  });
+};
+
+/* --- Список заявок --- */
+function ncBadge(o) {
+  if (o._sheet === 'Клієнти' || CLOSED.includes(o['Статус'])) return '';
+  const v = o['Наступний контакт'];
+  const n = daysTo(v);
+  if (n === null) return '<span class="nc yellow">без дати контакту</span>';
+  if (n < 0) return `<span class="nc red">контакт прострочено ${-n} ${dayWord(n)}</span>`;
+  if (n === 0) return '<span class="nc pink">контакт сьогодні</span>';
+  if (n === 1) return '<span class="nc dim">контакт завтра</span>';
+  return `<span class="nc dim">контакт ${esc(v.slice(0, 5))}</span>`;
+}
+function workSort(a, b) {
+  const k = o => { const n = daysTo(o['Наступний контакт']); return n === null ? -0.5 : n; };
+  const x = k(a), y = k(b);
+  if (x !== y) return x - y;
+  return Number(b['№']) - Number(a['№']);
+}
+function itemHtml(o) {
+  const who = [o["Ім'я клієнта"] || 'Без імені', o['Іменинник'] ? o['Іменинник'] + (o['Вік'] ? ', ' + o['Вік'] : '') : ''].filter(Boolean).join(' · ');
+  const party = o['Дата свята'] ? 'свято ' + o['Дата свята'].slice(0, 5) + (o['Початок'] ? ' ' + o['Початок'] : '') : '';
+  return `<button type="button" class="item" data-open="${esc(o['№'])}">
+    <span class="l1"><span class="nm">${esc(who)}</span><span class="no">№${esc(o['№'])}${o._sheet === 'Клієнти' ? ' · архів' : ''}</span></span>
+    <span class="l2">${stPill(o['Статус'])}${party ? `<span>${esc(party)}</span>` : ''}${o['Програма'] ? `<span>${esc(o['Програма'])}</span>` : ''}${ncBadge(o)}</span>
+  </button>`;
+}
+R.list = () => {
+  if (!S.data) return `<div class="top line"><img class="logo" src="logo.svg" alt="ТОШО!?"><span class="toptitle"></span><button class="ib" id="reload" data-act="reload" aria-label="Оновити">${ICON.refresh}</button></div><div class="load">Завантажую заявки…</div>`;
+  const recs = allRecs();
+  const work = workRecs(recs);
+  const statuses = L('Статус').filter(s => !CLOSED.includes(s));
+  const cnt = s => work.filter(o => o['Статус'] === s).length;
+  const filters = [['work', 'У роботі', work.length]]
+    .concat(statuses.filter(s => cnt(s)).map(s => [s, s, cnt(s)]))
+    .concat([['archive', 'Архів', recs.length - work.length]]);
+  if (!filters.some(f => f[0] === S.filter)) S.filter = 'work';
+  const q = S.q.trim().toLowerCase();
+  const at = S.data.at ? new Date(S.data.at) : null;
+  return `<div class="top line"><img class="logo" src="logo.svg" alt="ТОШО!?"><span class="toptitle"></span><button class="ib${S.loading ? ' spin' : ''}" id="reload" data-act="reload" aria-label="Оновити з таблиці">${ICON.refresh}</button></div>
+<div class="body">
+  <div class="search">${ICON.search}<input id="q" type="search" placeholder="Ім'я, телефон, № або адреса" value="${esc(S.q)}" aria-label="Пошук" autocomplete="off"></div>
+  <div class="chips scroll" id="filters" role="group" aria-label="Фільтр"${q ? ' hidden' : ''}>${filters.map(([k, t, n]) => `<button type="button" class="chip sm" data-filter="${esc(k)}" aria-pressed="${S.filter === k}">${esc(t)} · ${n}</button>`).join('')}</div>
+  <div class="list" id="items">${itemsHtml(recs, work)}</div>
+  ${at ? `<p class="stamp">Дані з таблиці на ${pad(at.getHours())}:${pad(at.getMinutes())}</p>` : ''}
+</div>
+<div class="dock"><button class="btn pink" type="button" data-act="new">${ICON.plus} Нова заявка</button></div>`;
+};
+function itemsHtml(recs, work) {
+  let items;
+  const q = S.q.trim().toLowerCase();
+  if (q) {
+    const qd = digits(q);
+    items = recs.filter(o => {
+      const hay = [o['№'], o["Ім'я клієнта"], o['Іменинник'], o['Контакт'], o['Адреса'], o['Програма'], o['Дата свята']].join(' ').toLowerCase();
+      return hay.includes(q) || (qd.length >= 3 && digits(o['Контакт']).includes(qd.replace(/^380/, '0')));
+    }).sort(workSort).slice(0, 60);
+  } else if (S.filter === 'work') items = work.sort(workSort);
+  else if (S.filter === 'archive') items = recs.filter(o => !work.includes(o)).sort((a, b) => (parseD(b['Дата свята']) || 0) - (parseD(a['Дата свята']) || 0)).slice(0, 100);
+  else items = work.filter(o => o['Статус'] === S.filter).sort(workSort);
+  return items.length ? items.map(itemHtml).join('') : `<p class="empty">${q ? 'Нічого не знайдено' : 'Тут порожньо'}</p>`;
+}
+const workRecs = recs => recs.filter(o => o._sheet === 'Заявки' && !CLOSED.includes(o['Статус']));
+AFTER.list = () => {
+  const q = $('#q');
+  if (q) q.addEventListener('input', () => {
+    S.q = q.value;
+    const recs = allRecs();
+    $('#items').innerHTML = itemsHtml(recs, workRecs(recs));
+    $('#filters').hidden = !!S.q.trim();
+  });
+  if (S.data && (!S.data.at || Date.now() - S.data.at > 60000)) load(true);
+};
+
+/* --- Нова заявка --- */
+const newSteps = () => STEPS.filter(s => !s.when || s.when(D));
+function startNew(fresh) {
+  const dr = fresh ? null : store.get('draft');
+  if (dr) { D = dr.D; META = dr.META || {}; NEW.id = dr.id || uid(); }
+  else { D = { 'Статус': '1. Нова', 'Дата звернення': addDays(0) }; META = { contactType: 'phone' }; NEW.id = uid(); }
+  go('step', { mode: 'new', i: dr ? Math.min(dr.i || 0, newSteps().length - 1) : 0 });
+}
+const NEW = { id: '' };
+function saveDraft() {
+  if (P.mode !== 'new') return;
+  store.set('draft', { D, META, id: NEW.id, i: P.i, at: Date.now() });
+}
+function draftHasData(dr) {
+  return dr && dr.D && Object.keys(dr.D).some(k => !['Статус', 'Дата звернення'].includes(k) && String(dr.D[k] || '').trim());
+}
+R.draft = () => {
+  const dr = store.get('draft');
+  const d = dr.D;
+  return `<div class="top"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><span class="toptitle">Нова заявка</span><span class="sp44"></span></div>
+<div class="body"><h2 tabindex="-1">Є незбережена заявка</h2>
+<div class="note gold"><span>${esc(d["Ім'я клієнта"] || 'Без імені')}${d['Контакт'] ? ' · ' + esc(d['Контакт']) : ''}</span>${d['Дата свята'] ? `<span class="mute">свято ${esc(d['Дата свята'])}</span>` : ''}</div>
+<p class="lead">Продовжити її чи почати нову? Незбережена заявка тоді зникне.</p>
+<div class="spacer"></div>
+<button class="btn" type="button" data-act="draft-continue">Продовжити</button>
+<button class="btn2" type="button" data-act="draft-new">Почати нову</button></div>`;
+};
+
+function stepTop(steps, i, title) {
+  const bars = steps.map((_, j) => `<i class="${j <= i ? 'on' : ''}"></i>`).join('');
+  return `<div class="top"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><div class="bar" aria-hidden="true">${bars}</div><span class="count" aria-label="Крок ${i + 1} з ${steps.length}">${i + 1}/${steps.length}</span></div>`;
+}
+R.step = () => {
+  const steps = newSteps();
+  const i = Math.min(P.i, steps.length - 1);
+  const st = steps[i];
+  const fields = st.f.filter(h => visible(h, D));
+  const last = i === steps.length - 1;
+  const nextIdx = steps.findIndex(s => s.k === 'next');
+  return `${stepTop(steps, i)}
+<div class="body"><h2 tabindex="-1">${esc(st.t)}</h2>${st.opt ? '<p class="small">Можна пропустити й дописати пізніше</p>' : ''}
+${fields.map(fieldHtml).join('')}
+</div>
+<div class="dock">
+  <button class="btn" type="button" data-act="next">${last ? 'До підсумку' : 'Далі'}</button>
+  ${st.jump && nextIdx > i + 1 ? '<button class="btn2" type="button" data-act="jump">Деталі пізніше, до «Що далі»</button>' : ''}
+  ${st.opt ? `<button class="link" type="button" data-act="skip">Пропустити</button>` : ''}
+</div>`;
+};
+
+R.summary = () => {
+  const steps = newSteps();
+  const sec = steps.map((s, i) => {
+    const rows = s.f.filter(h => visible(h, D) && String(D[h] || '').trim()).map(h => `<dt>${esc(h.replace(', грн', ''))}</dt><dd>${esc(fmtVal(h, D[h]))}</dd>`).join('');
+    return `<section class="box"><div class="hd"><h3>${esc(s.t)}</h3><button type="button" class="ed" data-goto="${i}">Змінити</button></div>${rows ? `<dl class="kv">${rows}</dl>` : '<p class="small">Не заповнено</p>'}</section>`;
+  }).join('');
+  return `<div class="top"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><span class="toptitle">Підсумок</span><span class="sp44"></span></div>
+<div class="body"><h2 tabindex="-1">Перевірте заявку</h2><div class="sum">${sec}</div>
+${P.err ? `<div class="fail"><p><b>Не збережено.</b> ${esc(P.err)}</p><p class="small">Введене не зникне. Спробуйте ще раз.</p></div>` : ''}
+</div>
+<div class="dock"><button class="btn pink" type="button" data-act="save" id="savebtn">Зберегти</button></div>`;
+};
+function fmtVal(h, v) {
+  if (F[h] && F[h].t === 'money') return money(digits(v)) + ' грн';
+  if (h === 'Допродажі' && META.multi && META.multi.length > 1) return META.multi.join(', ');
+  return String(v);
+}
+
+// Що піде в таблицю: допродажі «кілька» → коментар
+function packNew() {
+  const out = {};
+  const steps = newSteps();
+  steps.forEach(s => s.f.forEach(h => { if (visible(h, D) && String(D[h] || '').trim()) out[h] = String(D[h]).trim(); }));
+  ['Чек, грн', 'Передоплата, грн', 'Гостей'].forEach(h => { if (out[h]) out[h] = digits(out[h]); });
+  if (META.multi && META.multi.length > 1) {
+    out['Допродажі'] = 'Кілька (у коментарі)';
+    out['Коментар'] = [out['Коментар'], 'Допродажі: ' + META.multi.join(', ')].filter(Boolean).join('\n');
+  }
+  if (out['Контакт']) out['Контакт'] = META.contactType === 'nick' ? out['Контакт'] : normPhone(out['Контакт']);
+  return out;
+}
+async function saveNew() {
+  const b = $('#savebtn'); if (b) { b.disabled = true; b.textContent = 'Зберігаю…'; }
+  try {
+    const r = await api('create', { id: NEW.id, data: packNew() });
+    putRow('Заявки', r.row, r.v);
+    store.del('draft');
+    D = {}; META = {};
+    STACK.length = 0; STACK.push({ name: 'list', params: {} });
+    go('done', { nomer: r.nomer, rejected: r.rejected || [] });
+  } catch (e) {
+    if (e.code === 'pin') { go('pin', { msg: e.message }); return; }
+    P.err = e.message; render();
+  }
+}
+R.done = () => `<div class="top"><span class="sp44"></span><span class="toptitle"></span><span class="sp44"></span></div>
+<div class="body done"><p class="big">№${esc(P.nomer)}</p><h2 tabindex="-1">Замовлення додано</h2>
+${P.rejected.length ? `<div class="note warn" style="text-align:left"><b>Таблиця не прийняла:</b>${P.rejected.map(r => `<span>${esc(r.field)}: ${esc(r.value)}</span>`).join('')}<span class="mute">Ці значення дописано в коментар. Виправте їх у картці.</span></div>` : '<p class="lead">Рядок уже в «Заявках».</p>'}
+<div class="spacer"></div></div>
+<div class="dock"><button class="btn pink" type="button" data-act="new-fresh">${ICON.plus} Додати ще одне</button>
+<button class="btn2" type="button" data-open="${esc(P.nomer)}">Відкрити картку</button>
+<button class="link" type="button" data-act="home">До списку</button></div>`;
+
+/* --- Картка замовлення --- */
+function contactLinks(c) {
+  const p = phones(c).find(x => /^0\d{9}$/.test(x));
+  if (p) {
+    const intl = '380' + p.slice(1);
+    return `<div class="acts"><a href="tel:+${intl}">${ICON.phone}Дзвінок</a><a href="viber://chat?number=%2B${intl}">${ICON.chat}Viber</a><a href="https://t.me/+${intl}" target="_blank" rel="noopener">${ICON.send}Telegram</a><a href="https://wa.me/${intl}" target="_blank" rel="noopener">${ICON.chat}WhatsApp</a></div>`;
+  }
+  if (c) return `<div class="acts" style="grid-template-columns:1fr"><button type="button" data-copy="${esc(c)}">${ICON.copy}Копіювати контакт</button></div>`;
+  return '';
+}
+R.card = () => {
+  const o = findRec(P.nomer);
+  if (!o) return `<div class="top"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><span class="toptitle">№${esc(P.nomer)}</span><span class="sp44"></span></div><div class="body"><p class="empty">Замовлення не знайдено. Оновіть дані.</p></div>`;
+  const nb = ncBadge(o);
+  const link = S.data.ssId && S.data.gids ? `https://docs.google.com/spreadsheets/d/${S.data.ssId}/edit#gid=${S.data.gids[o._sheet]}&range=A${o._row}` : '';
+  const secs = SECTIONS.map(s => {
+    const rows = s.f.filter(h => col(h) > -1 && String(o[h] || '').trim()).map(h => `<dt>${esc(h.replace(', грн', ''))}</dt><dd class="${FORMULA().includes(h) ? 'f' : ''}">${esc(h.endsWith('грн') || h === 'Мін. передоплата' || h === 'Залишок до оплати' ? (o[h] + ' грн') : o[h])}</dd>`).join('');
+    return `<section class="box"><div class="hd"><h3>${esc(s.t)}</h3><button type="button" class="ed" data-edit="${s.k}">Змінити</button></div>${rows ? `<dl class="kv">${rows}</dl>` : '<p class="small">Не заповнено</p>'}</section>`;
+  }).join('');
+  return `<div class="top line"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><span class="toptitle">№${esc(o['№'])}${o._sheet === 'Клієнти' ? ' · архів' : ''}</span><button class="ib${S.loading ? ' spin' : ''}" id="reload" data-act="reload" aria-label="Оновити з таблиці">${ICON.refresh}</button></div>
+<div class="body">
+  <div class="hero"><h2 tabindex="-1">${esc(o["Ім'я клієнта"] || 'Без імені')}</h2>
+    <span class="sub">${esc(o['Контакт'] || 'контакту немає')}${o['Іменинник'] ? ' · ' + esc(o['Іменинник']) + (o['Вік'] ? ', ' + esc(o['Вік']) : '') : ''}</span>
+    <span class="l2" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">${stPill(o['Статус'])}${nb}</span></div>
+  ${contactLinks(o['Контакт'])}
+  ${o['Наступна дія'] ? `<div class="todo"><span>Наступна дія</span>${esc(o['Наступна дія'])}</div>` : ''}
+  <div class="row2"><button class="btn2" type="button" data-act="status">Змінити статус</button><button class="btn2" type="button" data-act="nextc">Наступний контакт</button></div>
+  ${secs}
+  ${link ? `<a class="link" href="${esc(link)}" target="_blank" rel="noopener">Відкрити рядок у таблиці</a>` : ''}
+</div>`;
+};
+AFTER.card = () => { if (S.data && Date.now() - (S.data.at || 0) > 60000) load(true); };
+
+// Редагування розділу картки, зміна статусу, наступний контакт
+const EDIT_SETS = {
+  status: { t: 'Статус', f: ['Статус', 'Причина відмови', 'Наступний контакт', 'Передоплата, грн', 'Дата передоплати'] },
+  nextc: { t: 'Наступний контакт', f: ['Наступний контакт', 'Коментар'] }
+};
+function openEdit(key) {
+  const o = findRec(P.nomer);
+  if (!o) return;
+  const set = EDIT_SETS[key] || SECTIONS.find(s => s.k === key);
+  D = {}; H().forEach(h => { D[h] = o[h] || ''; });
+  META = { contactType: /[a-zа-яіїєґ@_]/i.test(o['Контакт']) ? 'nick' : 'phone', orig: Object.assign({}, D), sheet: o._sheet, autoCheck: Number(digits(o['Чек, грн'])) || null, autoSklad: o['Склад програми'] };
+  go('edit', { mode: 'edit', key, nomer: o['№'], title: set.t, f: set.f.filter(h => !FORMULA().includes(h)) });
+}
+R.edit = () => {
+  const fields = P.f.filter(h => visible(h, D) && (P.key !== 'status' || !['Передоплата, грн', 'Дата передоплати'].includes(h) || PAY_ST.includes(D['Статус'])));
+  return `<div class="top"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><span class="toptitle">№${esc(P.nomer)} · ${esc(P.title)}</span><span class="sp44"></span></div>
+<div class="body"><h2 tabindex="-1">${esc(P.title)}</h2>
+${fields.map(fieldHtml).join('')}
+${P.err ? `<div class="fail"><p><b>Не збережено.</b> ${esc(P.err)}</p></div>` : ''}
+</div>
+<div class="dock"><button class="btn" type="button" data-act="save-edit" id="savebtn">Зберегти</button></div>`;
+};
+async function saveEdit() {
+  const fields = P.f.filter(h => visible(h, D));
+  if (!validate(fields)) return;
+  const changes = {};
+  const orig = META.orig;
+  const val = h => {
+    let v = String(D[h] == null ? '' : D[h]).trim();
+    if (['Чек, грн', 'Передоплата, грн', 'Гостей'].includes(h)) v = digits(v);
+    if (h === 'Контакт' && META.contactType !== 'nick') v = normPhone(v);
+    return v;
+  };
+  const same = (h, v) => (['Чек, грн', 'Передоплата, грн', 'Гостей'].includes(h) ? digits(orig[h]) : String(orig[h] || '').trim()) === v;
+  // Поле, яке зникло з форми (напр. причина відмови після зміни статусу), не чіпаємо
+  fields.forEach(h => { const v = val(h); if (!same(h, v)) changes[h] = { from: orig[h] || '', to: v }; });
+  if (META.multi && META.multi.length > 1) {
+    changes['Допродажі'] = { from: orig['Допродажі'] || '', to: 'Кілька (у коментарі)' };
+    const base = changes['Коментар'] ? changes['Коментар'].to : String(orig['Коментар'] || '').trim();
+    changes['Коментар'] = { from: orig['Коментар'] || '', to: [base, 'Допродажі: ' + META.multi.join(', ')].filter(Boolean).join('\n') };
+  }
+  if (!Object.keys(changes).length) { back(); return; }
+  const b = $('#savebtn'); b.disabled = true; b.textContent = 'Зберігаю…';
+  try {
+    const r = await api('update', { id: uid(), sheet: META.sheet, nomer: P.nomer, changes });
+    putRow(r.sheet, r.row, r.v);
+    const probs = [];
+    (r.conflicts || []).forEach(c => probs.push(`«${c.field}» хтось змінив у таблиці, там зараз: ${c.now || 'порожньо'}. Ваше значення не записано.`));
+    (r.rejected || []).forEach(c => probs.push(`«${c.field}»: таблиця не прийняла «${c.value}».`));
+    if (probs.length) { P.err = probs.join(' '); META.orig = rec({ sheet: r.sheet, row: r.row, v: r.v }); render(); return; }
+    toast(r.sheet !== META.sheet ? 'Збережено. Замовлення вже в «' + r.sheet + '»' : 'Збережено');
+    back();
+  } catch (e) {
+    if (e.code === 'pin') { go('pin', { msg: e.message }); return; }
+    P.err = e.message; render();
+  }
+}
+
+/* ====== ПОДІЇ ====== */
+view.addEventListener('click', e => {
+  const t = e.target.closest('button,a');
+  if (!t) return;
+  const d = t.dataset;
+  if (d.open) { go('card', { nomer: Number(d.open) }); return; }
+  if (d.filter) { S.filter = d.filter; render(true); return; }
+  if (d.edit) { openEdit(d.edit); return; }
+  if (d.goto !== undefined) { go('step', { mode: 'new', i: Number(d.goto), fromSum: 1 }); return; }
+  if (d.copy) { try { navigator.clipboard.writeText(d.copy); toast('Скопійовано'); } catch (x) {} return; }
+  if (d.ctype) { META.contactType = d.ctype; render(true); const i = view.querySelector('[data-in="Контакт"]'); if (i) i.focus(); saveDraft(); return; }
+  if (d.multi) {
+    const v = d.v; let sel = META.multi || (D[d.multi] && D[d.multi] !== 'Кілька (у коментарі)' ? [D[d.multi]] : []);
+    if (v === 'Немає') sel = sel.includes('Немає') ? [] : ['Немає'];
+    else sel = sel.includes(v) ? sel.filter(x => x !== v) : sel.filter(x => x !== 'Немає').concat([v]);
+    META.multi = sel; D[d.multi] = sel.length === 1 ? sel[0] : sel.length ? 'Кілька (у коментарі)' : '';
+    render(true); saveDraft(); return;
+  }
+  if (d.f) {
+    const h = d.f;
+    D[h] = D[h] === d.v && F[h] && F[h].t !== 'date' && F[h].t !== 'time' ? '' : d.v;   // повторний натиск знімає вибір
+    if (h === 'Програма' && D[h]) onProgram(D[h]);
+    if (h === 'Статус' && P.mode === 'edit' && !CLOSED.includes(D[h]) && (daysTo(D['Наступний контакт']) === null || daysTo(D['Наступний контакт']) < 0)) D['Наступний контакт'] = '';
+    render(true); saveDraft(); return;
+  }
+  switch (d.act) {
+    case 'back': back(); break;
+    case 'home': STACK.length = 0; go('list'); break;
+    case 'reload': load(); break;
+    case 'new': { const dr = store.get('draft'); if (draftHasData(dr)) go('draft'); else startNew(true); break; }
+    case 'new-fresh': store.del('draft'); STACK.length = 0; STACK.push({ name: 'list', params: {} }); startNew(true); break;
+    case 'draft-continue': STACK.pop(); startNew(false); break;
+    case 'draft-new': store.del('draft'); STACK.pop(); startNew(true); break;
+    case 'next': case 'skip': case 'jump': {
+      const steps = newSteps(); const st = steps[P.i];
+      if (d.act !== 'skip' && !validate(st.f)) return;
+      const ni = d.act === 'jump' ? steps.findIndex(s => s.k === 'next') : P.i + 1;
+      const fresh = newSteps();
+      if (P.fromSum && d.act !== 'jump') { go('summary', {}); return; }
+      if (ni >= fresh.length) go('summary', {}); else go('step', { mode: 'new', i: ni });
+      break;
+    }
+    case 'save': saveNew(); break;
+    case 'status': case 'nextc': openEdit(d.act); break;
+    case 'save-edit': saveEdit(); break;
+  }
+});
+view.addEventListener('input', e => {
+  const t = e.target;
+  if (t.dataset.in) {
+    const h = t.dataset.in;
+    let v = t.value;
+    if (F[h] && F[h].t === 'money') { const dg = digits(v); const m = money(dg); if (t.value !== m) { t.value = m; } v = dg; if (h === 'Чек, грн') META.autoCheck = null; }
+    if (F[h] && F[h].t === 'num') { v = digits(v); if (t.value !== v) t.value = v; }
+    if (h === 'Склад програми') META.autoSklad = null;
+    D[h] = v;
+    if (String(v).trim()) clearErr(h);
+    if (h === "Ім'я клієнта" && META.auto) META.auto.name = '';
+    refreshInfo(h);
+    saveDraft();
+  }
+});
+view.addEventListener('change', e => {
+  const t = e.target;
+  if (t.dataset.date) { D[t.dataset.date] = isoToD(t.value); render(true); saveDraft(); }
+  else if (t.dataset.in === 'Початок') { render(true); }
+  else if (t.dataset.in === 'Контакт') {
+    if (META.contactType !== 'nick') { const n = normPhone(t.value); if (n !== t.value) { t.value = n; D['Контакт'] = n; } }
+    onContactRepeat(); refreshInfo('Контакт'); saveDraft();
+  }
+});
+
+/* ====== СТАРТ ====== */
+(function init() {
+  try { history.replaceState({ n: 1 }, ''); } catch (e) {}
+  if (!S.pin) { STACK.push({ name: 'pin', params: {} }); show('pin', {}); return; }
+  STACK.push({ name: 'list', params: {} });
+  show('list', {});
+  load(!!S.data);
+})();
+</script>
+</body>
+</html>
