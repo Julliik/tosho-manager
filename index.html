@@ -398,6 +398,7 @@ function putRow(sheet, row, v) {
   S.data[k].sort((a, b) => a.row - b.row);
   store.set('data', S.data);
 }
+const numL = o => Number(o['№']) < 0 ? '…' : esc(o['№']);   // заявка ще йде в таблицю: № невідомий
 const L = name => (S.data && S.data.lists && S.data.lists[name]) || [];
 const CLOSED = ['8. Проведено', '10. Закрито', 'Помилково внесено'];
 const PAY_ST = ['5. Очікує оплату', '6. Заброньовано'];
@@ -574,11 +575,11 @@ function contactInfo() {
   const past = hits.filter(o => !active.includes(o)).sort((a, b) => (parseD(b['Дата свята']) || 0) - (parseD(a['Дата свята']) || 0));
   if (active.length) {
     const o = active[0];
-    out += `<div class="note warn"><b>Цей контакт уже в роботі: №${esc(o['№'])}</b><span>${esc(o["Ім'я клієнта"] || 'Без імені')} · ${esc(o['Статус'] || 'без статусу')}${o['Дата свята'] ? ' · свято ' + esc(o['Дата свята']) : ''}</span><span class="mute">Можливо, нова заявка не потрібна, а треба оновити наявну.</span><button type="button" class="act" data-open="${esc(o['№'])}">Відкрити №${esc(o['№'])}</button></div>`;
+    out += `<div class="note warn"><b>Цей контакт уже в роботі: №${numL(o)}</b><span>${esc(o["Ім'я клієнта"] || 'Без імені')} · ${esc(o['Статус'] || 'без статусу')}${o['Дата свята'] ? ' · свято ' + esc(o['Дата свята']) : ''}</span><span class="mute">Можливо, нова заявка не потрібна, а треба оновити наявну.</span><button type="button" class="act" data-open="${esc(o['№'])}">Відкрити №${numL(o)}</button></div>`;
   }
   if (past.length) {
     const o = past[0];
-    out += `<div class="note ok"><b>Повторний клієнт</b><span>${esc(o["Ім'я клієнта"] || 'Без імені')}${o['Дата свята'] ? ' · останнє свято ' + esc(o['Дата свята']) : ''}${o['Іменинник'] ? ' · ' + esc(o['Іменинник']) : ''} (№${esc(o['№'])})</span></div>`;
+    out += `<div class="note ok"><b>Повторний клієнт</b><span>${esc(o["Ім'я клієнта"] || 'Без імені')}${o['Дата свята'] ? ' · останнє свято ' + esc(o['Дата свята']) : ''}${o['Іменинник'] ? ' · ' + esc(o['Іменинник']) : ''} (№${numL(o)})</span></div>`;
   }
   return out;
 }
@@ -765,7 +766,7 @@ function itemHtml(o) {
   const who = [o["Ім'я клієнта"] || 'Без імені', o['Іменинник'] ? o['Іменинник'] + (o['Вік'] ? ', ' + o['Вік'] : '') : ''].filter(Boolean).join(' · ');
   const party = o['Дата свята'] ? 'свято ' + o['Дата свята'].slice(0, 5) + (o['Початок'] ? ' ' + o['Початок'] : '') : '';
   return `<button type="button" class="item" data-open="${esc(o['№'])}">
-    <span class="l1"><span class="nm">${esc(who)}</span><span class="no">№${esc(o['№'])}${o._sheet === 'Клієнти' ? ' · архів' : ''}</span></span>
+    <span class="l1"><span class="nm">${esc(who)}</span><span class="no">№${numL(o)}${o._sheet === 'Клієнти' ? ' · архів' : ''}</span></span>
     <span class="l2">${stPill(o['Статус'])}${party ? `<span>${esc(party)}</span>` : ''}${o['Програма'] ? `<span>${esc(o['Програма'])}</span>` : ''}${ncBadge(o)}</span>
   </button>`;
 }
@@ -896,7 +897,7 @@ R.cal = () => {
   <div class="legend"><span><i style="background:rgba(143,209,158,.6)"></i>заброньовано: ${n6}</span><span><i style="background:rgba(242,210,122,.6)"></i>очікує оплату: ${n5}</span></div>
   <h3>${esc(dayTitle)}</h3>
   <div class="list">${list.length ? list.map(o => `<button type="button" class="item" data-open="${esc(o['№'])}">
-    <span class="l1"><span class="nm">${esc((o['Початок'] || '?') + (o['Кінець'] ? '–' + o['Кінець'] : ''))} · ${esc(o["Ім'я клієнта"] || 'Без імені')}</span><span class="no">№${esc(o['№'])}</span></span>
+    <span class="l1"><span class="nm">${esc((o['Початок'] || '?') + (o['Кінець'] ? '–' + o['Кінець'] : ''))} · ${esc(o["Ім'я клієнта"] || 'Без імені')}</span><span class="no">№${numL(o)}</span></span>
     <span class="l2">${stPill(o['Статус'])}${o['Іменинник'] ? `<span>${esc(o['Іменинник'])}${o['Вік'] ? ', ' + esc(o['Вік']) : ''}</span>` : ''}${o['Програма'] ? `<span>${esc(o['Програма'])}</span>` : ''}${o['Формат'] === 'Під ключ' ? '<span>під ключ</span>' : ''}</span>
     ${o['Адреса'] || o['Район'] ? `<span class="l2">${esc(o['Адреса'] || o['Район'])}</span>` : ''}</button>`).join('') : '<p class="empty" style="padding:14px">Броней на цей день немає</p>'}</div>
 </div>${navHtml('cal')}`;
@@ -970,7 +971,7 @@ R.team = () => {
   const o = findRec(P.nomer);
   if (!o) return `<div class="top"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button></div><div class="body"><p class="empty">Замовлення не знайдено</p></div>`;
   const k = kartka(o);
-  return `<div class="top"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><span class="toptitle">№${esc(o['№'])} · Картка для команди</span><span class="sp44"></span></div>
+  return `<div class="top"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><span class="toptitle">№${numL(o)} · Картка для команди</span><span class="sp44"></span></div>
 <div class="body"><h2 tabindex="-1">Картка для команди</h2>
 ${k.missing.length ? `<div class="note warn"><b>Не заповнено: ${esc(k.missing.join(', '))}</b><span class="mute">Допишіть у картці замовлення, і текст оновиться.</span></div>` : ''}
 <pre class="kart" id="kart">${esc(k.text)}</pre></div>
@@ -1062,28 +1063,26 @@ function packNew() {
   Object.keys(F).forEach(h => { if (F[h].virt) delete out[h]; });
   return out;
 }
-async function saveNew() {
-  const b = $('#savebtn'); if (b) { b.disabled = true; b.textContent = 'Зберігаю…'; }
-  try {
-    const r = await api('create', { id: NEW.id, data: packNew(), meta: { reqTime: D['Час звернення'] || '', respTime: D['Час відповіді'] || '' } });
-    putRow('Заявки', r.row, r.v);
-    store.del('draft');
-    setTimeout(() => load(true), 300);   // оновити «Сьогодні»: формули перераховує таблиця
-    D = {}; META = {};
-    STACK.length = 0; STACK.push({ name: 'today', params: {} });
-    go('done', { nomer: r.nomer, rejected: r.rejected || [] });
-  } catch (e) {
-    if (e.code === 'pin') { go('pin', { msg: e.message }); return; }
-    P.err = e.message; render();
-  }
+// Нова заявка: одразу «прийнято», у таблицю йде у фоні (черга з повторами), № з'являється за кілька секунд.
+// Повтор із тим самим id другого рядка не створює. Поки таблиця не підтвердила запис, заявка лежить у черзі на телефоні
+function saveNew() {
+  const data = packNew();
+  const temp = -(Date.now() % 1000000000);
+  enqueue({ action: 'create', id: NEW.id, data, meta: { reqTime: D['Час звернення'] || '', respTime: D['Час відповіді'] || '' }, temp,
+    label: data["Ім'я клієнта"] || splitContact(data['Контакт']).other || 'нова заявка' });
+  store.del('draft');
+  D = {}; META = {};
+  STACK.length = 0; STACK.push({ name: 'today', params: {} });
+  go('done', { nomer: temp, temp, rejected: [] });
 }
-R.done = () => `<div class="top"><span class="sp44"></span><span class="toptitle"></span><span class="sp44"></span></div>
-<div class="body done"><p class="big">№${esc(P.nomer)}</p><h2 tabindex="-1">Замовлення додано</h2>
-${P.rejected.length ? `<div class="note warn" style="text-align:left"><b>Таблиця не прийняла:</b>${P.rejected.map(r => `<span>${esc(r.field)}: ${esc(r.value)}</span>`).join('')}<span class="mute">Ці значення дописано в коментар. Виправте їх у картці.</span></div>` : '<p class="lead">Рядок уже в «Заявках».</p>'}
+R.done = () => { const pend = Number(P.nomer) < 0; return `<div class="top"><span class="sp44"></span><span class="toptitle"></span><span class="sp44"></span></div>
+<div class="body done"><p class="big">${pend ? '⏳' : '№' + esc(P.nomer)}</p><h2 tabindex="-1">${pend ? 'Заявку прийнято' : 'Заявка в таблиці'}</h2>
+${P.rejected.length ? `<div class="note warn" style="text-align:left"><b>Таблиця не прийняла:</b>${P.rejected.map(r => `<span>${esc(r.field)}: ${esc(r.value)}</span>`).join('')}<span class="mute">Ці значення дописано в коментар. Виправте їх у картці.</span></div>`
+  : pend ? '<p class="lead">Записую в таблицю, № з\'явиться за кілька секунд. Можна працювати далі.</p>' : '<p class="lead">Рядок уже в «Заявках».</p>'}
 <div class="spacer"></div></div>
 <div class="dock"><button class="btn pink" type="button" data-act="new-fresh">${ICON.plus} Додати ще одне</button>
 <button class="btn2" type="button" data-open="${esc(P.nomer)}">Відкрити картку</button>
-<button class="link" type="button" data-act="home">Готово</button></div>`;
+<button class="link" type="button" data-act="home">Готово</button></div>`; };
 
 /* --- Картка замовлення --- */
 function contactLinks(o) {
@@ -1108,20 +1107,20 @@ R.card = () => {
   const link = S.data.ssId && S.data.gids ? `https://docs.google.com/spreadsheets/d/${S.data.ssId}/edit#gid=${S.data.gids[o._sheet]}&range=A${o._row}` : '';
   const secs = SECTIONS.map(s => {
     const rows = s.f.filter(h => (col(h) > -1 || h === 'Instagram') && String(cardVal(o, h)).trim()).map(h => `<dt>${esc(h.replace(', грн', ''))}</dt><dd class="${FORMULA().includes(h) ? 'f' : ''}">${esc(h.endsWith('грн') || h === 'Мін. передоплата' || h === 'Залишок до оплати' ? (o[h] + ' грн') : cardVal(o, h))}</dd>`).join('');
-    return `<section class="box"><div class="hd"><h3>${esc(s.t)}</h3><button type="button" class="ed" data-edit="${s.k}">Змінити</button></div>${rows ? `<dl class="kv">${rows}</dl>` : '<p class="small">Не заповнено</p>'}</section>`;
+    return `<section class="box"><div class="hd"><h3>${esc(s.t)}</h3>${Number(o['№']) < 0 ? '' : `<button type="button" class="ed" data-edit="${s.k}">Змінити</button>`}</div>${rows ? `<dl class="kv">${rows}</dl>` : '<p class="small">Не заповнено</p>'}</section>`;
   }).join('');
-  return `<div class="top line"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><span class="toptitle">№${esc(o['№'])}${o._sheet === 'Клієнти' ? ' · архів' : ''}</span><button class="ib${S.loading ? ' spin' : ''}" id="reload" data-act="reload" aria-label="Оновити з таблиці">${ICON.refresh}</button></div>
+  return `<div class="top line"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><span class="toptitle">№${numL(o)}${o._sheet === 'Клієнти' ? ' · архів' : ''}</span><button class="ib${S.loading ? ' spin' : ''}" id="reload" data-act="reload" aria-label="Оновити з таблиці">${ICON.refresh}</button></div>
 <div class="body">
   <div class="hero"><h2 tabindex="-1">${esc(o["Ім'я клієнта"] || 'Без імені')}</h2>
     <span class="sub">${esc(o._contact || (o._insta ? '@' + o._insta : 'контакту немає'))}${o['Іменинник'] ? ' · ' + esc(o['Іменинник']) + (o['Вік'] ? ', ' + esc(o['Вік']) : '') : ''}</span>
     <span class="l2" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">${stPill(o['Статус'])}${nb}</span></div>
   ${contactLinks(o)}
   ${o['Наступна дія'] ? `<div class="todo"><span>Наступна дія</span>${esc(o['Наступна дія'])}</div>` : ''}
-  <div class="row2"><button class="btn2" type="button" data-act="status">Змінити статус</button><button class="btn2" type="button" data-act="nextc">Наступний контакт</button></div>
-  <div class="row2"><button class="btn2" type="button" data-act="tpl">${ICON.msg} Написати</button><button class="btn2" type="button" data-act="note">${ICON.pen} Нотатка</button></div>
+  ${Number(o['№']) < 0 ? '<div class="note gold"><b>⏳ Заявка записується в таблицю</b><span class="mute">Змінювати поля можна, щойно з\'явиться №. Написати клієнту й додати нотатку можна вже зараз.</span></div><div class="row2"><button class="btn2" type="button" data-act="tpl">' + ICON.msg + ' Написати</button><button class="btn2" type="button" data-act="note">' + ICON.pen + ' Нотатка</button></div>' : `<div class="row2"><button class="btn2" type="button" data-act="status">Змінити статус</button><button class="btn2" type="button" data-act="nextc">Наступний контакт</button></div>
+  <div class="row2"><button class="btn2" type="button" data-act="tpl">${ICON.msg} Написати</button><button class="btn2" type="button" data-act="note">${ICON.pen} Нотатка</button></div>`}
   <button class="btn2" type="button" data-act="team">${ICON.team} Картка для команди</button>
   ${secs}
-  ${link ? `<a class="link" href="${esc(link)}" target="_blank" rel="noopener">Відкрити рядок у таблиці</a>` : ''}
+  ${link && o._row ? `<a class="link" href="${esc(link)}" target="_blank" rel="noopener">Відкрити рядок у таблиці</a>` : ''}
 </div>`;
 };
 AFTER.card = () => { if (S.data && Date.now() - (S.data.at || 0) > 60000) load(true); };
@@ -1196,6 +1195,13 @@ function setCell(o, h, v) {
 }
 function applyLocal(job) {
   if (!S.data) return;
+  if (job.action === 'create') {
+    if (S.data.zayavky.some(r => Number(r.v[0]) === job.temp)) return;
+    const d = Object.assign({ 'Статус': '1. Нова', 'Дата звернення': addDays(0) }, job.data);
+    const v = H().map(h => h === '№' ? String(job.temp) : d[h] === undefined ? '' : ['Чек, грн', 'Передоплата, грн'].includes(h) ? money(digits(d[h])) : String(d[h]));
+    S.data.zayavky.push({ row: 0, v });
+    return;
+  }
   const o = findRec(job.nomer);
   if (!o) return;
   if (job.action === 'update') Object.keys(job.changes).forEach(h => {
@@ -1221,7 +1227,8 @@ async function flush() {
   try {
     while (S.outbox.length) {
       const job = S.outbox[0];
-      const payload = job.action === 'note'
+      const payload = job.action === 'create' ? { id: job.id, data: job.data, meta: job.meta }
+        : job.action === 'note'
         ? { id: job.id, sheet: job.sheet, nomer: job.nomer, text: job.text, next: job.next, nextTime: job.nextTime }
         : { id: job.id, sheet: job.sheet, nomer: job.nomer, changes: job.changes };
       let r;
@@ -1229,11 +1236,26 @@ async function flush() {
       catch (e) {
         if (['net', 'busy', 'bad', 'config'].includes(e.code)) { clearTimeout(flushT); flushT = setTimeout(flush, 20000); break; }
         if (e.code === 'pin' || e.code === 'locked') { go('pin', { msg: e.message }); break; }
-        S.problems.push({ nomer: job.nomer, label: job.label || '', msg: e.message, at: Date.now() });
+        if (job.action === 'create') {
+          S.data.zayavky = S.data.zayavky.filter(x => Number(x.v[0]) !== job.temp);
+          S.problems.push({ nomer: '', label: 'нова заявка: ' + (job.label || ''), msg: e.message + '. Заявку можна відновити як чернетку', data: job.data, at: Date.now() });
+        } else S.problems.push({ nomer: job.nomer, label: job.label || '', msg: e.message, at: Date.now() });
         S.outbox.shift(); saveQueue(); continue;
       }
       S.outbox.shift();
       sent++;
+      if (job.action === 'create') {
+        S.data.zayavky = S.data.zayavky.filter(x => Number(x.v[0]) !== job.temp);
+        putRow('Заявки', r.row, r.v);
+        STACK.forEach(x => { if (x.params && Number(x.params.nomer) === job.temp) x.params.nomer = r.nomer; });
+        S.outbox.forEach(j => { if (Number(j.nomer) === job.temp) { j.nomer = r.nomer; j.sheet = 'Заявки'; } });   // нотатки, зроблені до появи №
+        if (Number(P.nomer) === job.temp) { P.nomer = r.nomer; if (cur === 'done') P.rejected = r.rejected || []; }
+        if (r.rejected && r.rejected.length && cur !== 'done') S.problems.push({ nomer: r.nomer, label: job.label || '', msg: 'Таблиця не прийняла: ' + r.rejected.map(x => x.field + ' «' + x.value + '»').join(', ') + '. Значення дописано в коментар' , at: Date.now() });
+        if (cur !== 'done') toast('Заявку №' + r.nomer + ' записано в таблицю');
+        saveQueue();
+        if (['done', 'card', 'list', 'today'].includes(cur)) render(true);
+        continue;
+      }
       putRow(r.sheet, r.row, r.v);
       const msgs = [];
       (r.conflicts || []).forEach(c => msgs.push(`«${c.field}» хтось змінив у таблиці, там зараз: ${c.now || 'порожньо'}. Ваше значення не записано`));
@@ -1253,7 +1275,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) flus
 
 R.problems = () => `<div class="top"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><span class="toptitle">Не збережено</span><span class="sp44"></span></div>
 <div class="body"><h2 tabindex="-1">Що не дійшло до таблиці</h2>
-${S.problems.length ? S.problems.map(x => `<div class="note warn"><b>№${esc(x.nomer)}${x.label ? ' · ' + esc(x.label) : ''}</b><span>${esc(x.msg)}</span><button type="button" class="act" data-open="${esc(x.nomer)}">Відкрити №${esc(x.nomer)}</button></div>`).join('') : '<p class="empty">Усе збережено</p>'}
+${S.problems.length ? S.problems.map((x, i) => `<div class="note warn"><b>${x.nomer ? '№' + esc(x.nomer) + ' · ' : ''}${esc(x.label || '')}</b><span>${esc(x.msg)}</span>${x.data ? `<button type="button" class="act" data-act="restore" data-v="${i}">Відновити як чернетку</button>` : `<button type="button" class="act" data-open="${esc(x.nomer)}">Відкрити №${esc(x.nomer)}</button>`}</div>`).join('') : '<p class="empty">Усе збережено</p>'}
 ${S.outbox.length ? `<p class="small">Ще в черзі: ${S.outbox.length}. Збережуться, щойно буде зв'язок.</p>` : ''}
 </div>
 ${S.problems.length ? '<div class="dock"><button class="btn2" type="button" data-act="problems-clear">Зрозуміло, прибрати список</button></div>' : ''}`;
@@ -1302,7 +1324,7 @@ R.note = () => {
   if (!o) return '<div class="body"><p class="empty">Замовлення не знайдено</p></div>';
   if (!P.init) { P.init = 1; D = { 'Наступний контакт': o['Наступний контакт'] || '', 'Час контакту': o['Час контакту'] || '', 'Статус': o['Статус'] }; META = {}; P.text = P.text || ''; }
   const hist = String(o['Коментар'] || '').split('\n').filter(x => x.trim()).slice(-4);
-  return `<div class="top"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><span class="toptitle">№${esc(o['№'])} · Нотатка</span><span class="sp44"></span></div>
+  return `<div class="top"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><span class="toptitle">№${numL(o)} · Нотатка</span><span class="sp44"></span></div>
 <div class="body"><h2 tabindex="-1">Нотатка</h2>
 ${hist.length ? `<div class="note"><span class="mute">Останнє в коментарі</span>${hist.map(x => `<span>${esc(x)}</span>`).join('')}</div>` : ''}
 <div class="field"><label class="flabel" for="notetext">Що сталося, що домовились</label><textarea id="notetext" placeholder="Наприклад: надіслала пропозицію, чекаємо відповідь доньки">${esc(P.text)}</textarea></div>
@@ -1495,7 +1517,7 @@ R.tpl = () => {
   const groups = [];
   TPL.forEach(t => { let g = groups.find(x => x.g === t.g); if (!g) groups.push(g = { g: t.g, items: [] }); g.items.push(t); });
   const btn = t => `<button type="button" class="opt" data-tplk="${t.k}"><span class="t">${esc(t.t)}</span></button>`;
-  return `<div class="top"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><span class="toptitle">№${esc(o['№'])} · Написати</span><span class="sp44"></span></div>
+  return `<div class="top"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><span class="toptitle">№${numL(o)} · Написати</span><span class="sp44"></span></div>
 <div class="body"><h2 tabindex="-1">Написати клієнту</h2>
 ${myName() ? '' : '<div class="note gold"><span>Вкажіть своє ім\'я в налаштуваннях (шестерня зверху на головній), щоб воно підставлялось у привітання.</span></div>'}
 <h3>Зараз доречно</h3>${sug.map(k => btn(TPL.find(t => t.k === k))).join('')}
@@ -1510,7 +1532,7 @@ R.tplone = () => {
   const holes = (P.text.match(/\[[^\]]+\]/g) || []).length;
   const ch = (lbl, n) => `<button type="button" class="chip sm" data-act="after-next" data-v="${n}" aria-pressed="${String(P.after) === String(n)}">${lbl}</button>`;
   if (P.after === undefined) P.after = '';
-  return `<div class="top"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><span class="toptitle">№${esc(o['№'])} · ${esc(t.t)}</span><span class="sp44"></span></div>
+  return `<div class="top"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><span class="toptitle">№${numL(o)} · ${esc(t.t)}</span><span class="sp44"></span></div>
 <div class="body"><h2 tabindex="-1">${esc(t.t)}</h2>
 ${holes ? `<div class="note warn"><span>Допишіть місця в [дужках]: ${holes}</span></div>` : ''}
 <textarea id="tplta" class="tplta" aria-label="Текст повідомлення">${esc(P.text)}</textarea>
@@ -1693,6 +1715,13 @@ view.addEventListener('click', e => {
     case 'flush': flush(); toast(S.outbox.length ? 'Зберігаю зміни…' : 'Усе збережено'); break;
     case 'problems': go('problems'); break;
     case 'problems-clear': S.problems = []; saveQueue(); back(); break;
+    case 'restore': {
+      const x = S.problems[+d.v]; if (!x || !x.data) break;
+      const sc = splitContact(x.data['Контакт']);
+      store.set('draft', { D: Object.assign({}, x.data, { 'Контакт': sc.other, 'Instagram': sc.insta }), META: { contactType: /[a-zа-яіїєґ@_]/i.test(sc.other) ? 'nick' : 'phone' }, id: uid(), i: 0 });
+      S.problems.splice(+d.v, 1); saveQueue();
+      STACK.length = 0; STACK.push({ name: 'today', params: {} }); startNew(false); break;
+    }
     case 'settings': go('settings'); break;
     case 'settings-save': saveSettings(); break;
     case 'logout': if (S.outbox.length && !confirmLeave()) break; S.pin = ''; store.del('pin'); store.del('data'); S.data = null; STACK.length = 0; go('pin'); break;
