@@ -34,7 +34,7 @@ html,body{background:var(--page)}
 body{margin:0;color:var(--fg);font-family:var(--text);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
 button{font:inherit;color:inherit}
-.app{max-width:560px;margin:0 auto;min-height:100vh;min-height:100dvh;background:var(--bg);display:flex;flex-direction:column}
+.app{max-width:560px;margin:0 auto;min-height:100vh;min-height:100dvh;background:var(--bg);display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)}  /* ярлик на робочому столі iPhone: сторінка заходить під рядок стану, відступаємо на його висоту */
 @media (min-width:600px){.app{border-left:1px solid #222;border-right:1px solid #222}}
 #view{flex:1;display:flex;flex-direction:column;transition:opacity .18s ease}
 #view.fade{opacity:0}
