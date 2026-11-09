@@ -269,6 +269,11 @@ input[type="date"],input[type="time"]{color-scheme:dark;-webkit-appearance:none;
 .vdet .chg{font-size:13px;font-weight:600;color:var(--pink)}
 .vdet[open] .chg{color:var(--soft)}
 .vdet .vpick{padding:0 12px 12px}
+.vocbox{display:flex;flex-direction:column;gap:8px;padding:10px 14px;border-radius:14px;background:var(--card);border:1px solid var(--line)}
+.vocbox.line{flex-direction:row;align-items:center;justify-content:space-between;gap:10px;font-size:14px}
+.vocbox.line>span{min-width:0}
+.vocrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+.vocrow input{min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--fg);font:inherit}
 </style>
 </head>
 <body>
@@ -1441,7 +1446,7 @@ const TPL = [
 
   // Нагадування і закриття
   { k: 'n1', g: 'Нагадування і закриття', t: 'Нагадування 1 з 2: «скинути ще відео?»', p: 'П8.1, Н1', note: 'Через добу тиші. З 10:00 до 20:00. Ім\'я в кличному відмінку, незрозуміле ім\'я замінюємо на «Вітаємо! Підкажіть,».', m: ['{mama}, скинути вам ще кілька відео з наших свят{forAge}? Так простіше уявити, як проходить свято 😉'] },
-  { k: 'n2', g: 'Нагадування і закриття', t: 'Нагадування 2 з 2: «якщо не скоро, нічого страшного»', p: 'П8.1, Н2', note: 'На 3-й день тиші. Останнє: далі закриваємо без закривального повідомлення. Якщо пише дитина, додайте «…або перешліть цю переписку мамі, я все розповім».', m: ['{mama}, якщо свято ще не скоро, нічого страшного. Напишіть, на коли приблизно плануєте, і я нагадаю про себе ближче до дати 😊'] },
+  { k: 'n2', g: 'Нагадування і закриття', t: 'Нагадування 2 з 2: «якщо не скоро, нічого страшного»', p: 'П8.1, Н2', note: 'Через 3 дні після нагадування 1. Останнє: далі закриваємо без закривального повідомлення. Якщо пише дитина, додайте «…або перешліть цю переписку мамі, я все розповім».', m: ['{mama}, якщо свято ще не скоро, нічого страшного. Напишіть, на коли приблизно плануєте, і я нагадаю про себе ближче до дати 😊'] },
   { k: 'npay', g: 'Нагадування і закриття', t: 'Нагадати про передоплату', p: 'П8.2', note: 'Через 24 год після реквізитів.', m: ['{mama}, нагадую про передоплату: поки її немає, {date} за вами не закріплена.', 'Все в силі? 🤍'] },
   { k: 'later', g: 'Нагадування і закриття', t: 'Відкладено: повертаємось, як просила', p: 'П8.3', note: 'Перше, якщо назвала місяць; друге, якщо дату свята. Програму беремо з переписки.', m: ['{mama}, вітаю! Це Анна з ТОШО́!? ✨ Ви просили нагадати про свято {dochsyn} ближче до [місяць].', '{mama}, вітаю! Це Анна з ТОШО́!? ✨ Ви просили нагадати про день народження {dochsyn} ближче до {date}.', '{dlya} свято може виглядати так: {programOr}, до 3,5 годин, від {sumOr} грн, з командою і дорогою по Києву.\n\nНа яку дату плануєте? Перевірю, чи вільна команда 😊'] },
   { k: 'later2', g: 'Нагадування і закриття', t: 'Відкладено: тиждень тиші', p: 'П8.3', m: ['{mama}, свято ще в планах? Якщо дата вже відома, напишіть, перевірю команду 🫶🏼'] },
@@ -1472,6 +1477,46 @@ const OBJ_KEYS = TPL.filter(t => t.g === 'Заперечення').map(t => t.k)
 
 /* ====== ПІДСТАНОВКИ В ТЕКСТИ ====== */
 const progFmt = p => String(p || '').split(' + ').map(x => x.trim()).filter(Boolean).map(x => x === 'МК' ? 'майстер-клас' : /^Вгадай/.test(x) ? '«Вгадай, що всередині»' : '«' + x + '»').join(' + ');
+
+/* ====== ІМ'Я КЛІЄНТКИ УКРАЇНСЬКОЮ ======
+   База П8.1: ім'я з профілю перекладаємо українською (Лена → Олено, Инна → Інно, Olga → Ольго).
+   Нік, незрозуміле ім'я чи значок (Lizok, ♡, kozyr.netali) → без імені: «Вітаємо! …».
+   Менеджер може виправити звертання на екрані повідомлення, CRM запам'ятає його на цьому телефоні */
+const UA_NAMES = (() => {
+  const m = {}; const add = (ua, list) => list.split(',').forEach(x => { m[x.trim()] = ua; });
+  add('Олена', 'елена,лена,olena,elena,lena,helen,helena,olenka'); add('Альона', 'алёна,алена,alona,alyona,aliona');
+  add('Інна', 'инна,inna'); add('Ірина', 'ирина,ира,iryna,irina,ira'); add('Ольга', 'olga,olha,olya,olia'); add('Оля', 'оля');
+  add('Наталія', 'наталья,наталия,наташа,natalia,nataliia,natalya,natali,natalie,natasha'); add('Тетяна', 'татьяна,таня,tetiana,tatiana,tetyana,tanya,tania');
+  add('Катерина', 'екатерина,катя,kateryna,katerina,ekaterina,katya,kate'); add('Марія', 'мария,маша,maria,mariia,mariya,masha');
+  add('Світлана', 'светлана,света,svitlana,svetlana,sveta'); add('Юлія', 'юлия,юля,yulia,yuliia,julia,iuliia,yuliya,julie');
+  add('Вікторія', 'виктория,вика,viktoria,viktoriia,victoria,vika'); add('Анастасія', 'анастасия,настя,anastasia,anastasiia,nastya,nastia');
+  add('Оксана', 'oksana'); add('Анна', 'anna,ann,anya,аня'); add('Ганна', 'hanna'); add('Марина', 'maryna,marina'); add('Яна', 'yana'); add('Дарія', 'дарья,даша,daria,dariia,dasha');
+  add('Аліна', 'алина,alina'); add('Кристина', 'kristina,khrystyna,kristin'); add('Діана', 'диана,diana'); add('Софія', 'софья,софия,sofia,sofiia,sofiya');
+  add('Поліна', 'полина,polina'); add('Валерія', 'валерия,valeria,valeriia'); add('Людмила', 'liudmyla,ludmila,lyudmila,люда'); add('Галина', 'halyna,galina,галя');
+  add('Надія', 'надежда,надя,nadia,nadiia'); add('Лілія', 'лилия,lilia,liliia'); add('Ілона', 'илона,ilona'); add('Віра', 'вера,vira,vera');
+  add('Євгенія', 'евгения,женя,yevheniia,evgenia,eugenia'); add('Олеся', 'olesia,olesya,lesia'); add('Каріна', 'карина,karina'); add('Вероніка', 'вероника,veronika');
+  add('Мілана', 'милана,milana'); add('Сніжана', 'снежана,snizhana'); add('Тамара', 'tamara'); add('Лариса', 'larysa,larisa'); add('Алла', 'alla'); add('Валентина', 'valentyna,valentina');
+  add('Ніна', 'нина,nina'); add('Жанна', 'zhanna'); add('Уляна', 'ульяна,uliana,ulyana'); add('Ангеліна', 'ангелина,angelina'); add('Еліна', 'элина,elina'); add('Регіна', 'регина,regina');
+  add('Єлизавета', 'елизавета,yelyzaveta,elizaveta'); add('Любов', 'любовь,люба'); add('Ксенія', 'ксения,kseniia,ksenia'); add('Інеса', 'инесса,inesa,inessa'); add('Ельвіра', 'эльвира,elvira');
+  add('Дмитро', 'дмитрий,дима,dmytro,dmitry,dmitriy'); add('Сергій', 'сергей,serhii,sergey,sergii'); add('Олександр', 'александр,саша,oleksandr,alexander,alex,sasha');
+  add('Андрій', 'андрей,andrii,andrey'); add('Олексій', 'алексей,oleksii,alexey'); add('Володимир', 'владимир,volodymyr,vladimir'); add('Ігор', 'игорь,ihor,igor');
+  add('Євген', 'евгений,yevhen,evgeniy,evgeny'); add('Олег', 'oleh,oleg'); add('Віктор', 'виктор,viktor'); add('Микола', 'николай,mykola,nikolay'); add('Михайло', 'михаил,mykhailo,mikhail');
+  add('Іван', 'иван,ivan'); add('Павло', 'павел,pavlo,pavel'); add('Максим', 'maksym,maxim,max'); add('Роман', 'roman'); add('Артем', 'артём,artem'); add('Денис', 'denys,denis'); add('Юрій', 'юрий,yurii,yuriy');
+  return m;
+})();
+const MALE_VOC = { 'Дмитро': 'Дмитре', 'Сергій': 'Сергію', 'Олександр': 'Олександре', 'Андрій': 'Андрію', 'Олексій': 'Олексію', 'Володимир': 'Володимире', 'Ігор': 'Ігорю', 'Євген': 'Євгене', 'Олег': 'Олегу', 'Віктор': 'Вікторе', 'Микола': 'Миколо', 'Михайло': 'Михайле', 'Іван': 'Іване', 'Павло': 'Павле', 'Максим': 'Максиме', 'Роман': 'Романе', 'Артем': 'Артеме', 'Денис': 'Денисе', 'Юрій': 'Юрію', 'Любов': 'Любове' };
+function uaName(raw) {
+  const s = String(raw || '').trim();
+  if (!s || /[_@.\d]/.test(s)) return '';
+  const tok = s.replace(/^[^A-Za-zА-Яа-яІіЇїЄєҐґЁё]+/, '').split(/[\s,()]+/)[0] || '';
+  const k = tok.toLowerCase().replace(/ё/g, 'ё');
+  if (UA_NAMES[k]) return UA_NAMES[k];
+  if (/^[а-яіїєґ'’-]{2,}$/i.test(tok) && !/[ыэъё]/i.test(tok) && !/^и/i.test(tok)) return tok.charAt(0).toUpperCase() + tok.slice(1).toLowerCase();
+  return '';
+}
+function vocUa(n) { if (!n) return ''; if (MALE_VOC[n]) return MALE_VOC[n]; if (n === 'Ольга') return 'Ольго'; return voc(n); }
+const callAuto = o => vocUa(uaName(o["Ім'я клієнта"]));
+function callName(o) { const x = store.get('voc_' + o['№']); return x === null || x === undefined ? callAuto(o) : x; }
 function tplCtx(o) {
   const d = h => String(o[h] || '').trim();
   const num = h => Number(digits(d(h))) || 0;
@@ -1496,7 +1541,7 @@ function tplCtx(o) {
   const btnAge = /10[–-]12/.test(ad) ? '10–12 років' : /13[–-]14/.test(ad) ? '13–14 років' : '';
   const st = d('Початок');
   return {
-    mama: voc(d("Ім'я клієнта")), kid, kidGen: gen(kid, f), kidDat: dat(kid, f),
+    mama: callName(o), kid, kidGen: gen(kid, f), kidDat: dat(kid, f),
     age: age || '', guests: num('Гостей') || '',
     date: pd ? pd.getDate() + ' ' + MONTHS_G[pd.getMonth()] : '', wd: pd ? WEEKDAYS[pd.getDay()] : '',
     time: st, arrive: st ? addMin(st, -30) : '', addr: d('Адреса') || [d('Місце'), d('Район')].filter(Boolean).join(', '),
@@ -1517,6 +1562,10 @@ const PH = { mama: "ім'я клієнтки", kid: "ім'я дитини", kidG
   time: 'час', arrive: 'час приїзду команди', addr: 'адреса', program: 'програма', programRaw: 'програма', duration: 'тривалість', sum: 'сума', sumMinus: 'сума − 1 000', pre: 'передоплата', preGot: 'передоплата',
   rest: 'залишок', lastGame: 'гра минулого разу', dochsyn: 'доньки / сина', dlya: 'Для доньки / Для сина', hl: 'посилання на хайлайти' };
 function fillOne(x, c) {
+  if (!String(c.mama || '').trim()) {   // без імені: як у базі П8.1
+    x = String(x).replace(/Вітаю, \{mama\}! /, 'Вітаю! ').replace(/^\{mama\}, вітаю! /, 'Вітаю! ').replace(/^\{mama\}, скинути/, 'Вітаємо! Підкажіть, скинути')
+      .replace(/^\{mama\}, (\S)/, (m, ch) => 'Вітаємо! ' + ch.toUpperCase()).replace(/\{mama\}, /g, '');
+  }
   return String(x).replace(/\{(\w+)\}/g, (m, k) => (c[k] !== undefined && String(c[k]).trim() !== '') ? String(c[k]) : (k === 'forAge' ? '' : '[' + (PH[k] || k) + ']'))
     .replace(/^\[ім'я клієнтки\], /, 'Вітаємо! Підкажіть, ');
 }
@@ -1530,9 +1579,9 @@ const NB = '10. Закрито';
 const FLOW = {
   first:     { label: 'Перша відповідь', sts: ['1. Нова', ''], what: 'Привітання, ігри, відео, ціни й одне питання. Відповідаємо до 15 хвилин.', tpl: 'auto-first', send: 'Надіслала першу відповідь', then: 'статус «2. Уточнення». Якщо мовчатиме, завтра нагадування 1 з 2',
                next: o => ({ st: '2. Уточнення', step: 'n1', in: 1, note: 'Надіслано: перша відповідь' }) },
-  n1:        { label: 'Нагадування 1 з 2', sts: ['2. Уточнення', '3. Пропозиція', '4. Дзвінок'], what: 'Клієнтка мовчить добу. Пропонуємо ще відео, щоб легко було відповісти «так».', tpl: 'n1', send: 'Надіслала нагадування 1', then: 'якщо мовчатиме, завтра нагадування 2 з 2',
-               next: o => ({ step: 'n2', in: 1, note: 'Надіслано: нагадування 1 з 2 (П8.1)' }) },
-  n2:        { label: 'Нагадування 2 з 2', sts: ['2. Уточнення', '3. Пропозиція', '4. Дзвінок'], what: 'Мовчить третій день. Останнє нагадування: дозволяємо відкласти й питаємо, на коли.', tpl: 'n2', send: 'Надіслала нагадування 2', then: 'якщо до завтра тиша, CRM запропонує закрити заявку',
+  n1:        { label: 'Нагадування 1 з 2', sts: ['2. Уточнення', '3. Пропозиція', '4. Дзвінок'], what: 'Клієнтка мовчить добу. Пропонуємо ще відео, щоб легко було відповісти «так».', tpl: 'n1', send: 'Надіслала нагадування 1', then: 'якщо мовчатиме, через 3 дні нагадування 2 з 2',
+               next: o => ({ step: 'n2', in: 3, note: 'Надіслано: нагадування 1 з 2 (П8.1)' }) },
+  n2:        { label: 'Нагадування 2 з 2', sts: ['2. Уточнення', '3. Пропозиція', '4. Дзвінок'], what: 'Три дні тиші після нагадування 1. Останнє нагадування: дозволяємо відкласти й питаємо, на коли.', tpl: 'n2', send: 'Надіслала нагадування 2', then: 'якщо до завтра тиша, CRM запропонує закрити заявку',
                next: o => ({ step: 'close', in: 1, note: 'Надіслано: нагадування 2 з 2 (П8.1)' }) },
   close:     { label: 'Закрити: не відповіла', sts: ['1. Нова', '2. Уточнення', '3. Пропозиція', '4. Дзвінок', '5. Очікує оплату', '9. Відкладено'], what: 'Нагадування без відповіді. Закриваємо без закривального повідомлення. Напише пізніше, відкриємо знову.', noText: 1, send: 'Закрити заявку', then: 'статус «10. Закрито», причина «Перестали відповідати»',
                next: o => ({ st: NB, step: '', set: { 'Причина відмови': 'Перестали відповідати' }, note: 'Закрито: перестала відповідати' }),
@@ -1770,6 +1819,11 @@ function dateCheck(o) {
     ? `<div class="note warn"><b>${esc(d)} зайнято</b>${b.map(x => `<span>№${esc(x['№'])} ${esc(x["Ім'я клієнта"] || '')}, ${esc(x['Статус'])}${x['Початок'] ? ', ' + esc(x['Початок']) : ''}</span>`).join('')}<span class="mute">Не пишіть «бронюємо». Запропонуйте найближчі вільні дні або передайте Юлії: друга команда чи інший час.</span><button type="button" class="act" data-tplk="busy">Текст «Дата зайнята»</button></div>`
     : `<div class="note ok"><b>${esc(d)} вільне</b><span class="mute">На цей день немає заявок «5. Очікує оплату» і «6. Заброньовано».</span></div>`;
 }
+function vocRow(o) {
+  const cur = callName(o); const auto = callAuto(o); const raw = String(o["Ім'я клієнта"] || '');
+  if (P.vocEdit) return `<div class="vocbox"><label class="flabel" for="vocin">Звертання в повідомленнях (кличний відмінок)</label><div class="vocrow"><input id="vocin" type="text" value="${esc(cur)}" placeholder="Наприклад, Олено" autocomplete="off"><button type="button" class="mcopy" data-vocsave="1">Готово</button></div><div class="chips"><button type="button" class="chip sm" data-vocset="">Без імені</button>${auto && auto !== cur ? `<button type="button" class="chip sm" data-vocset="${esc(auto)}">${esc(auto)}</button>` : ''}</div><p class="small">У таблиці: «${esc(raw)}». Збережеться на цьому телефоні.</p></div>`;
+  return `<div class="vocbox line"><span>Звертання: <b>${cur ? esc(cur) : 'без імені («Вітаємо! …»)'}</b>${raw && cur !== raw ? ` <span class="soft">· у таблиці «${esc(raw)}»</span>` : ''}</span><button type="button" class="mcopy" data-vocedit="1">Змінити</button></div>`;
+}
 R.flow = () => {
   const o = findRec(P.nomer);
   if (!o) return '<div class="body"><p class="empty">Замовлення не знайдено</p></div>';
@@ -1784,6 +1838,7 @@ R.flow = () => {
   return `<div class="top"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><span class="toptitle">№${numL(o)} · ${esc(o["Ім'я клієнта"] || '')}</span><span class="sp44"></span></div>
 <div class="body"><h2 tabindex="-1">${esc(fl.label)}</h2><p class="lead">${esc(fl.what)}</p>
 ${fl.datecheck ? dateCheck(o) : ''}
+${P.msgs.some(m => !m.media) ? vocRow(o) : ''}
 ${tk.pick ? `<details class="vdet"${P.vopen ? ' open' : ''}><summary><span class="flabel">${key === 'first' ? 'З чим прийшла клієнтка' : key === 'reply' ? 'Що спитала' : 'Варіант'}</span><b>${esc(TPLk(P.v).t)}</b><span class="chg">Змінити</span></summary><div class="chips c1 vpick">${tk.pick.map(k => `<button type="button" class="chip" data-variant="${k}" aria-pressed="${P.v === k}">${esc(TPLk(k).t)}</button>`).join('')}</div></details>` : ''}
 ${notes.map(n => `<div class="note gold"><span>${esc(n)}</span></div>`).join('')}
 ${holes.length ? `<div class="note warn"><span>Допишіть місця в [дужках]: ${holes.length}</span></div>` : ''}
@@ -2001,6 +2056,7 @@ R.tplone = () => {
   return `<div class="top"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><span class="toptitle">№${numL(o)} · ${esc(t.p)}</span><span class="sp44"></span></div>
 <div class="body"><h2 tabindex="-1">${esc(t.t)}</h2>
 ${t.note ? `<div class="note gold"><span>${esc(t.note)}</span></div>` : ''}
+${vocRow(o)}
 ${holes.length ? `<div class="note warn"><span>Допишіть місця в [дужках]: ${holes.length}</span></div>` : ''}
 ${msgsHtml(P.msgs)}
 ${contactLinks(o)}
@@ -2028,6 +2084,8 @@ function flowClick(t, d) {
   }
   if (d.ans) { go('ans', { nomer: Number(d.ans) }); return true; }
   if (d.more) { go('more', { nomer: Number(d.more) }); return true; }
+  if (d.vocedit) { P.vocEdit = 1; render(true); setTimeout(() => { const i = $('#vocin'); if (i) i.focus(); }, 50); return true; }
+  if (d.vocsave !== undefined || d.vocset !== undefined) { const o = findRec(P.nomer); const v = d.vocset !== undefined ? d.vocset : String(($('#vocin') || {}).value || '').trim(); store.set('voc_' + o['№'], v); P.vocEdit = 0; render(true); toast(v ? 'Звертання: ' + v : 'Без імені'); return true; }
   if (d.variant) { P.v = d.variant; P.vopen = 0; render(); return true; }
   if (d.mcopy !== undefined) {
     const txt = P.msgs[+d.mcopy];
