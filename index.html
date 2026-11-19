@@ -240,6 +240,10 @@ input[type="date"],input[type="time"]{color-scheme:dark;-webkit-appearance:none;
 .wrow .n{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wrow .d{font-size:12px;color:var(--gold);font-variant-numeric:tabular-nums;text-align:right}
 .wrow .s{grid-column:1/-1;font-size:12px;color:var(--soft)}
+.kzl{display:flex;flex-direction:column;gap:8px;padding:0 10px 10px}
+.item.kz{cursor:default;gap:8px}
+.item.kz .kv{font-size:13px}
+.item.kz .acts a,.item.kz .acts button{min-height:52px}
 .stepbox{display:flex;flex-direction:column;gap:6px;padding:14px;border-radius:16px;background:rgba(248,164,184,.08);border:1px solid rgba(248,164,184,.45)}
 .stepbox .k{font:600 11px/1 var(--display);letter-spacing:.06em;text-transform:uppercase;color:var(--pink)}
 .stepbox b{font-size:17px}
@@ -448,6 +452,108 @@ function allRecs() {
     .concat(S.data.klienty.map(r => rec(Object.assign({ sheet: 'Клієнти' }, r))));
 }
 function findRec(nomer) { return allRecs().find(o => Number(o['№']) === Number(nomer)); }
+
+// Ключі клієнта для пошуку його інших замовлень: телефони і Instagram (з «Контакту» або старого коментаря)
+const instaKey = n => n ? 'instagram.com/' + String(n).toLowerCase().replace(/^@/, '') : '';
+function clientKeys(o) {
+  const k = phones(o._contact).map(p => p.toLowerCase());
+  if (o._insta) k.push(instaKey(o._insta));
+  return k.filter(x => x.length >= 4);
+}
+// Усі інші записи клієнта з «Заявок» і «Клієнтів», нові свята зверху
+function clientHistory(o) {
+  const mine = clientKeys(o);
+  if (!mine.length) return [];
+  const when = x => parseD(x['Дата свята']) || parseD(x['Дата звернення']) || 0;
+  return allRecs().filter(x => Number(x['№']) !== Number(o['№']) && x['Статус'] !== 'Помилково внесено' && clientKeys(x).some(k => mine.includes(k)))
+    .sort((a, b) => when(b) - when(a));
+}
+// Рядок історії: повна дата свята (з роком), програма і чек
+function histItem(x) {
+  const who = [x["Ім'я клієнта"] || 'Без імені', x['Іменинник'] ? x['Іменинник'] + (x['Вік'] ? ', ' + x['Вік'] : '') : ''].filter(Boolean).join(' · ');
+  const when = x['Дата свята'] ? 'свято ' + x['Дата свята'] : x['Дата звернення'] ? 'звернення ' + x['Дата звернення'] : '';
+  const chek = digits(x['Чек, грн']);
+  return `<button type="button" class="item" data-open="${esc(x['№'])}">
+    <span class="l1"><span class="nm">${esc(who)}</span><span class="no">№${numL(x)}${x._sheet === 'Клієнти' ? ' · архів' : ''}</span></span>
+    <span class="l2">${stPill(x['Статус'])}${when ? `<span>${esc(when)}</span>` : ''}${x['Програма'] ? `<span>${esc(x['Програма'])}</span>` : ''}${chek ? `<span>${money(chek)} грн</span>` : ''}</span>
+  </button>`;
+}
+function historyHtml(o) {
+  const h = clientHistory(o);
+  if (!h.length) return '';
+  const done = h.filter(x => x['Статус'] === '8. Проведено');
+  const sum = done.reduce((t, x) => t + (Number(digits(x['Чек, грн'])) || 0), 0);
+  return `<section class="box"><div class="hd"><h3>Інші замовлення клієнта · ${h.length}</h3></div>
+  ${done.length ? `<p class="small">Проведено свят: ${done.length}${sum ? ' на ' + money(sum) + ' грн' : ''}</p>` : ''}
+  <div class="list">${h.map(histItem).join('')}</div></section>`;
+}
+
+/* ====== КАЗДЕВИ: аркуш «Каздеви», лише перегляд. Колонки за назвами з рядка 1 ====== */
+const KZ_ORDER = ['⚑ Відповісти нам', 'Домовлено', 'Чекаємо клієнтку', 'Без відповіді', 'Проведено', 'Відмовилась'];
+const KZ_DONE = ['Проведено', 'Відмовилась'];
+function kzRecs() {
+  const k = S.data && S.data.kazdevy;
+  if (!k || !k.headers) return [];
+  return k.rows.map(r => {
+    const o = { _row: r.row };
+    k.headers.forEach((h, i) => { o[h] = r.v[i] == null ? '' : String(r.v[i]).trim(); });
+    o._insta = normInsta(o['Instagram']);
+    o._phone = normPhone(o['Телефон']);
+    const m = String(o['№ у CRM'] || '').match(/№\s*(\d+)/);
+    o._nomer = m ? Number(m[1]) : 0;
+    return o;
+  }).filter(o => o["Ім'я"] || o['Instagram'] || o['Телефон']);
+}
+// Перша дата dd.mm у вільному тексті «Дата розмови» (23.11.2026, 25.11 або 26.11, 23–27.11)
+function kzDate(o) {
+  const t = String(o['Дата розмови'] || '');
+  const m = t.match(/(\d{1,2})\s*[–-]\s*\d{1,2}\.(\d{1,2})/) || t.match(/(\d{1,2})\.(\d{1,2})(?:\.(\d{4}))?/);
+  if (!m) return null;
+  const now = today0();
+  return new Date(m[3] ? +m[3] : now.getFullYear(), +m[2] - 1, +m[1]);
+}
+const kzActive = () => kzRecs().filter(o => !KZ_DONE.includes(o['Статус'])).length;
+function kzFor(o) {   // каздев цього клієнта: за № або за телефоном / Instagram
+  const mine = clientKeys(o);
+  return kzRecs().find(k => k._nomer === Number(o['№']) || (k._phone && mine.includes(k._phone)) || (k._insta && mine.includes(instaKey(k._insta))));
+}
+function kzWhen(k) {
+  const d = kzDate(k);
+  const n = d ? Math.round((d - today0()) / 86400000) : null;
+  const txt = [k['Дата розмови'], k['Час']].filter(x => x && x !== '—').join(', ');
+  if (!txt) return '';
+  const cls = n === 0 ? 'pink' : n !== null && n < 0 && !KZ_DONE.includes(k['Статус']) ? 'red' : 'dim';
+  return `<span class="nc ${cls}">${n === 0 ? 'сьогодні · ' : n === 1 ? 'завтра · ' : ''}${esc(txt)}</span>`;
+}
+function kzItem(k) {
+  const dl = String(k['Діалог'] || '').trim();
+  const dlUrl = dl ? (/^https?:\/\//.test(dl) ? dl : 'https://www.' + dl.replace(/^www\./, '')) : '';
+  const p = /^0\d{9}$/.test(k._phone) ? k._phone : '';
+  const b = [];
+  if (dlUrl) b.push(`<a href="${esc(dlUrl)}" target="_blank" rel="noopener">${ICON.insta}Діалог</a>`);
+  else if (k._insta) b.push(`<a href="https://www.instagram.com/${encodeURIComponent(k._insta)}/" target="_blank" rel="noopener">${ICON.insta}Instagram</a>`);
+  if (p) b.push(`<a href="tel:+380${p.slice(1)}">${ICON.phone}Дзвінок</a>`);
+  if (k._nomer) b.push(`<button type="button" data-open="${k._nomer}">${ICON.list}Картка №${k._nomer}</button>`);
+  const info = [['Хто це', k['Хто це']], ['Відповіла', k['Що відповіла']], ['Далі', k['Наступний крок']]].filter(x => x[1] && x[1] !== '—');
+  return `<div class="item kz">
+    <span class="l1"><span class="nm">${esc(k["Ім'я"] || '@' + k._insta)}</span>${k._insta ? `<span class="no">@${esc(k._insta)}</span>` : ''}</span>
+    ${kzWhen(k) ? `<span class="l2">${kzWhen(k)}</span>` : ''}
+    ${info.length ? `<dl class="kv">${info.map(([t, v]) => `<dt>${esc(t)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>` : ''}
+    ${b.length ? `<div class="acts" style="grid-template-columns:repeat(${b.length},minmax(0,1fr))">${b.join('')}</div>` : ''}
+  </div>`;
+}
+function kzHtml() {
+  const all = kzRecs();
+  if (!all.length) return '<p class="empty">У вкладці «Каздеви» порожньо</p>';
+  const groups = KZ_ORDER.concat([...new Set(all.map(k => k['Статус'] || 'Без статусу'))].filter(s => !KZ_ORDER.includes(s)));
+  const t = d => d ? +d : 9e15;
+  const link = S.data.ssId && S.data.kazdevy.gid != null ? `https://docs.google.com/spreadsheets/d/${S.data.ssId}/edit#gid=${S.data.kazdevy.gid}` : '';
+  return groups.map(g => {
+    const a = all.filter(k => (k['Статус'] || 'Без статусу') === g).sort((x, y) => t(kzDate(x)) - t(kzDate(y)));
+    if (!a.length) return '';
+    return `<details class="fwait"${KZ_DONE.includes(g) ? '' : ' open'}><summary><h3>${esc(g)}</h3><span class="cnt">${a.length}</span></summary><div class="kzl">${a.map(kzItem).join('')}</div></details>`;
+  }).join('') + (link ? `<a class="link" href="${esc(link)}" target="_blank" rel="noopener">Змінити в таблиці</a>` : '');
+}
 function putRow(sheet, row, v) {
   const n = Number(v[0]);
   ['zayavky', 'klienty'].forEach(k => { S.data[k] = S.data[k].filter(r => Number(r.v[0]) !== n); });
@@ -834,9 +940,13 @@ R.list = () => {
   const work = workRecs(recs);
   const statuses = L('Статус').filter(s => !CLOSED.includes(s));
   const cnt = s => work.filter(o => o['Статус'] === s).length;
+  const kz = S.data.kazdevy ? [['kazdev', 'Каздеви', kzActive() || kzRecs().length]] : [];
+  const kzOn = kzActive() > 0;   // поки каздеви тривають, чіп одразу після «У роботі»
   const filters = [['work', 'У роботі', work.length]]
+    .concat(kzOn ? kz : [])
     .concat(statuses.filter(s => cnt(s)).map(s => [s, s, cnt(s)]))
-    .concat([['archive', 'Архів', recs.length - work.length]]);
+    .concat([['archive', 'Архів', recs.length - work.length]])
+    .concat(kzOn ? [] : kz);
   if (!filters.some(f => f[0] === S.filter)) S.filter = 'work';
   const q = S.q.trim().toLowerCase();
   const at = S.data.at ? new Date(S.data.at) : null;
@@ -852,6 +962,7 @@ ${navHtml('list')}`;
 function itemsHtml(recs, work) {
   let items;
   const q = S.q.trim().toLowerCase();
+  if (!q && S.filter === 'kazdev') return kzHtml();
   if (q) {
     const qd = digits(q);
     items = recs.filter(o => {
@@ -1129,6 +1240,11 @@ function contactLinks(o) {
   if (!b.length) return '';
   return `<div class="acts" style="grid-template-columns:repeat(${b.length},minmax(0,1fr))${b.length > 4 ? ';font-size:11px' : ''}">${b.join('')}</div>`;
 }
+function kzNote(o) {
+  const k = kzFor(o);
+  if (!k) return '';
+  return `<div class="note gold"><b>Каздев: ${esc(k['Статус'] || 'без статусу')}</b>${kzWhen(k) ? `<span>${kzWhen(k)}</span>` : ''}${k['Наступний крок'] && k['Наступний крок'] !== '—' ? `<span class="mute">${esc(k['Наступний крок'])}</span>` : ''}</div>`;
+}
 const cardVal = (o, h) => h === 'Контакт' ? o._contact : h === 'Instagram' ? (o._insta ? '@' + o._insta : '') : (o[h] || '');
 R.card = () => {
   const o = findRec(P.nomer);
@@ -1147,6 +1263,8 @@ R.card = () => {
   ${contactLinks(o)}
   ${Number(o['№']) < 0 ? '<div class="note gold"><b>⏳ Заявка записується в таблицю</b><span class="mute">Змінювати поля можна, щойно з\'явиться №. Написати клієнту й додати нотатку можна вже зараз.</span></div><div class="row2"><button class="btn2" type="button" data-act="tpl">' + ICON.msg + ' Тексти</button><button class="btn2" type="button" data-act="note">' + ICON.pen + ' Нотатка</button></div>' : stepBox(o)}
   <button class="btn2" type="button" data-act="team">${ICON.team} Картка для команди</button>
+  ${kzNote(o)}
+  ${historyHtml(o)}
   ${secs}
   ${link && o._row ? `<a class="link" href="${esc(link)}" target="_blank" rel="noopener">Відкрити рядок у таблиці</a>` : ''}
 </div>`;
