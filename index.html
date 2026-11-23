@@ -278,6 +278,8 @@ input[type="date"],input[type="time"]{color-scheme:dark;-webkit-appearance:none;
 .vocbox.line>span{min-width:0}
 .vocrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
 .vocrow input{min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--fg);font:inherit}
+select.csel{width:100%;min-height:52px;padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--fg);font:16px/1.4 var(--text);color-scheme:dark}
+button.note{width:100%;border-width:1px;cursor:pointer;text-align:left;color:var(--fg)}
 </style>
 </head>
 <body>
@@ -285,7 +287,7 @@ input[type="date"],input[type="time"]{color-scheme:dark;-webkit-appearance:none;
 <div id="toast" role="status"></div>
 <script>
 /* ====== НАЛАШТУВАННЯ ====== */
-const SITE_VERSION = '6 · етап 2 · 23.11.2026';   // видно в «Налаштуваннях» (аудит І7)
+const SITE_VERSION = '8 · етап 3.3 · 23.11.2026';   // видно в «Налаштуваннях» (аудит І7)
 const STALE_MS = 5 * 60 * 1000;   // дані старші за 5 хв оновлюються у фоні при переході між екранами (аудит Ш4, було 60 с)
 const CONFIG = {
   endpoint: 'https://script.google.com/macros/s/AKfycbxIAF93Esi0pIZAHZ-MFCNekx3zc0tq7BsMIOwTG9rNhPtwmePNmAyoCGjX4UPe2ZFoYw/exec',   // адреса вебзастосунку Apps Script «ТОШО CRM» (…/exec)
@@ -369,6 +371,7 @@ const ICON = {
   next: '<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>',
   team: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>',
   report: '<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
+  people: '<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.5a6.5 6.5 0 0 1 3.5 5.5"/></svg>',
   gear: '<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
   pen: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
   msg: '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg>',
@@ -383,6 +386,7 @@ const S = {
   loading: false,
   filter: 'work',
   q: '',
+  cq: '',   // пошук у «Клієнтах»
   who: store.get('who') || '',
   outbox: store.get('outbox') || [],      // зміни, які ще не дійшли до таблиці
   problems: store.get('problems') || [],  // зміни, які таблиця не прийняла
@@ -422,7 +426,8 @@ function refreshView() {
   const typing = document.activeElement && document.activeElement.id === 'q';
   if (cur === 'list' && !typing) render(true);
   else if (cur === 'list') { const recs = allRecs(); $('#items').innerHTML = itemsHtml(recs, workRecs(recs)); }
-  else if ((cur === 'card' && P.nomer) || ['today', 'cal', 'team', 'report'].includes(cur)) render(true);
+  else if (cur === 'clients' && document.activeElement && document.activeElement.id === 'cq') { clDirty(); $('#citems').innerHTML = citemsHtml(); }
+  else if ((cur === 'card' && P.nomer) || ['today', 'cal', 'team', 'report', 'clients', 'client', 'check'].includes(cur)) render(true);
 }
 async function load(silent) {
   // Завантаження вже йде: не губимо запит, а повторюємо одразу після нього (аудит К6)
@@ -434,6 +439,7 @@ async function load(silent) {
     const d = await api('init');
     d.at = Date.now();
     S.data = d;
+    clDirty();
     Object.keys(FRESH).forEach(n => { const f = FRESH[n]; if (f.at >= t0) putRow(f.sheet, f.row, f.v); else delete FRESH[n]; });
     store.set('data', d);
     S.outbox.forEach(applyLocal);   // зміни, що ще в черзі, не мають зникнути з екрана
@@ -493,7 +499,9 @@ function histItem(x) {
   </button>`;
 }
 function historyHtml(o) {
-  const h = clientHistory(o);
+  // З бази: усі замовлення клієнта за «Клієнт ID». Без бази або без ID — як раніше, за телефоном і ніком
+  const c = hasBase() ? clientOf(o[CID]) : null;
+  const h = c ? c.orders.filter(x => Number(x['№']) !== Number(o['№'])) : clientHistory(o);
   if (!h.length) return '';
   const done = h.filter(x => x['Статус'] === '8. Проведено');
   const sum = done.reduce((t, x) => t + (Number(digits(x['Чек, грн'])) || 0), 0);
@@ -569,6 +577,7 @@ function kzHtml() {
   }).join('') + (link ? `<a class="link" href="${esc(link)}" target="_blank" rel="noopener">Змінити в таблиці</a>` : '');
 }
 function putRow(sheet, row, v) {
+  clDirty();
   const n = Number(v[0]);
   ['zayavky', 'klienty'].forEach(k => { S.data[k] = S.data[k].filter(r => Number(r.v[0]) !== n); });
   const k = sheet === 'Клієнти' ? 'klienty' : 'zayavky';
@@ -626,6 +635,8 @@ const visible = (h, d) => { const f = F[h]; return !f || !f.when || f.when(d); }
 
 // Кроки нової заявки. Обов'язкові: Клієнт, Звернення, Що далі. Решту можна пропустити
 const STEPS = [
+  // Етап 3.2: спершу знайти клієнта в базі. Крок не показується без бази і коли замовлення почали з картки клієнта
+  { k: 'who', t: 'Клієнт з бази', f: [], who: 1, when: () => hasBase() && !META.preset },
   { k: 'client', t: 'Клієнт', f: ['Контакт', 'Instagram', "Ім'я клієнта"] },
   { k: 'source', t: 'Звернення', f: ['Канал', 'Джерело', 'Перейшов у месенджер', 'Дата звернення', 'Час звернення', 'Час відповіді'], jump: 1 },
   { k: 'kid', t: 'Іменинник', f: ['Іменинник', 'Вік', 'Стать'], opt: 1 },
@@ -740,7 +751,8 @@ function myContacts() {
 const recContacts = o => phones(o['Контакт']).map(p => p.toLowerCase().replace(/^@/, ''));
 
 // Повторний клієнт і дубль заявки
-function contactInfo() {
+function contactInfo() { return contactInfo0() + baseHint(); }
+function contactInfo0() {
   const c = String(D['Контакт'] || '').trim();
   const mine = myContacts();
   if (!mine.length) return '';
@@ -755,7 +767,7 @@ function contactInfo() {
     const o = active[0];
     out += `<div class="note warn"><b>Цей контакт уже в роботі: №${numL(o)}</b><span>${esc(o["Ім'я клієнта"] || 'Без імені')} · ${esc(o['Статус'] || 'без статусу')}${o['Дата свята'] ? ' · свято ' + esc(o['Дата свята']) : ''}</span><span class="mute">Можливо, нова заявка не потрібна, а треба оновити наявну.</span><button type="button" class="act" data-open="${esc(o['№'])}">Відкрити №${numL(o)}</button></div>`;
   }
-  if (past.length) {
+  if (past.length && !hasBase()) {   // з базою це покаже baseHint
     const o = past[0];
     out += `<div class="note ok"><b>Повторний клієнт</b><span>${esc(o["Ім'я клієнта"] || 'Без імені')}${o['Дата свята'] ? ' · останнє свято ' + esc(o['Дата свята']) : ''}${o['Іменинник'] ? ' · ' + esc(o['Іменинник']) : ''} (№${numL(o)})</span></div>`;
   }
@@ -868,6 +880,7 @@ window.addEventListener('popstate', () => {
 function show(name, params) {
   const paint = () => {
     cur = name; P = params;
+    clDirty();
     view.innerHTML = R[name]();
     view.classList.remove('fade');
     window.scrollTo(0, 0);
@@ -880,6 +893,7 @@ function show(name, params) {
 }
 function render(keepScroll) {
   const y = window.scrollY;
+  clDirty();
   view.innerHTML = R[cur]();
   if (AFTER[cur]) AFTER[cur]();
   if (keepScroll) window.scrollTo(0, y);
@@ -959,7 +973,7 @@ R.list = () => {
   const filters = [['work', 'У роботі', work.length]]
     .concat(kzOn ? kz : [])
     .concat(statuses.filter(s => cnt(s)).map(s => [s, s, cnt(s)]))
-    .concat([['archive', 'Архів', recs.length - work.length]])
+    .concat([['archive', 'Архів замовлень', recs.length - work.length]])
     .concat(kzOn ? [] : kz);
   if (!filters.some(f => f[0] === S.filter)) S.filter = 'work';
   const q = S.q.trim().toLowerCase();
@@ -1003,11 +1017,11 @@ AFTER.list = () => {
 /* --- Нижнє меню --- */
 function navHtml(a) {
   const it = (k, t, ic) => `<button type="button" data-tab="${k}"${a === k ? ' aria-current="page"' : ''}>${ic}<span>${t}</span></button>`;
-  return `<nav class="nav" aria-label="Розділи">${it('today', 'Сьогодні', ICON.today)}${it('list', 'Заявки', ICON.list)}<button type="button" class="plus" data-act="new">${ICON.plus}<span>Нова</span></button>${it('cal', 'Календар', ICON.cal)}${it('report', 'Звіт', ICON.report)}</nav>`;
+  return `<nav class="nav" aria-label="Розділи">${it('today', 'Сьогодні', ICON.today)}${it('list', 'Заявки', ICON.list)}<button type="button" class="plus" data-act="new">${ICON.plus}<span>Нова</span></button>${it('cal', 'Календар', ICON.cal)}${it('clients', 'Клієнти', ICON.people)}</nav>`;
 }
 const syncHtml = () => (S.problems.length ? `<button type="button" class="sync bad" data-act="problems">⚠ ${S.problems.length}</button>` : '')
   + (S.outbox.length ? `<button type="button" class="sync" data-act="flush" aria-label="Зміни ще зберігаються">⏳ ${S.outbox.length}</button>` : '');
-const topMain = () => `<div class="top line"><img class="logo" src="logo.svg" alt="ТОШО!?"><span class="toptitle"></span><span id="syncbox" style="display:flex;gap:6px">${syncHtml()}</span><button class="ib" data-act="settings" aria-label="Налаштування">${ICON.gear}</button><button class="ib${S.loading ? ' spin' : ''}" id="reload" data-act="reload" aria-label="Оновити з таблиці">${ICON.refresh}</button></div>`;
+const topMain = () => `<div class="top line"><img class="logo" src="logo.svg" alt="ТОШО!?"><span class="toptitle"></span><span id="syncbox" style="display:flex;gap:6px">${syncHtml()}</span><button class="ib" data-tab="report" aria-label="Звіт">${ICON.report}</button><button class="ib" data-act="settings" aria-label="Налаштування">${ICON.gear}</button><button class="ib${S.loading ? ' spin' : ''}" id="reload" data-act="reload" aria-label="Оновити з таблиці">${ICON.refresh}</button></div>`;
 const autoLoad = () => { if (stale()) load(true); };
 
 /* --- Сьогодні: див. «КРОКИ ВОРОНКИ» нижче --- */
@@ -1136,10 +1150,11 @@ ${navigator.share ? '<button class="btn2" type="button" data-act="kart-share">П
 
 /* --- Нова заявка --- */
 const newSteps = () => STEPS.filter(s => !s.when || s.when(D));
-function startNew(fresh) {
+function startNew(fresh, cid) {
   const dr = fresh ? null : store.get('draft');
   if (dr) { D = dr.D; META = dr.META || {}; NEW.id = dr.id || uid(); }
   else { D = { 'Статус': '1. Нова', 'Дата звернення': addDays(0), 'Час відповіді': agoHM(0) }; META = { contactType: 'phone' }; NEW.id = uid(); }
+  if (cid && !dr) { META.preset = 1; whoPick(cid); }   // нове замовлення з картки клієнта
   go('step', { mode: 'new', i: dr ? Math.min(dr.i || 0, newSteps().length - 1) : 0 });
 }
 const NEW = { id: '' };
@@ -1175,10 +1190,10 @@ R.step = () => {
   const nextIdx = steps.findIndex(s => s.k === 'next');
   return `${stepTop(steps, i)}
 <div class="body"><h2 tabindex="-1">${esc(st.t)}</h2>${st.opt ? '<p class="small">Можна пропустити й дописати пізніше</p>' : ''}
-${fields.map(fieldHtml).join('')}
+${st.who ? whoStepHtml() : ''}${st.k === 'kid' ? kidChips() : ''}${fields.map(fieldHtml).join('')}
 </div>
 <div class="dock">
-  <button class="btn" type="button" data-act="next">${last ? 'До підсумку' : 'Далі'}</button>
+  <button class="btn" type="button" data-act="next">${last ? 'До підсумку' : st.who && !META.clientId ? 'Новий клієнт' : 'Далі'}</button>
   ${st.jump && nextIdx > i + 1 ? '<button class="btn2" type="button" data-act="jump">Деталі пізніше, до «Що далі»</button>' : ''}
   ${st.opt ? `<button class="link" type="button" data-act="skip">Пропустити</button>` : ''}
 </div>`;
@@ -1187,7 +1202,7 @@ ${fields.map(fieldHtml).join('')}
 R.summary = () => {
   const steps = newSteps();
   const sec = steps.map((s, i) => {
-    const rows = s.f.filter(h => visible(h, D) && String(D[h] || '').trim()).map(h => `<dt>${esc(h.replace(', грн', ''))}</dt><dd>${esc(fmtVal(h, D[h]))}</dd>`).join('');
+    const rows = (s.who || (s.k === 'client' && META.preset) ? whoSum() : '') + s.f.filter(h => visible(h, D) && String(D[h] || '').trim()).map(h => `<dt>${esc(h.replace(', грн', ''))}</dt><dd>${esc(fmtVal(h, D[h]))}</dd>`).join('');
     return `<section class="box"><div class="hd"><h3>${esc(s.t)}</h3><button type="button" class="ed" data-goto="${i}">Змінити</button></div>${rows ? `<dl class="kv">${rows}</dl>` : '<p class="small">Не заповнено</p>'}</section>`;
   }).join('');
   return `<div class="top"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><span class="toptitle">Підсумок</span><span class="sp44"></span></div>
@@ -1223,7 +1238,7 @@ function packNew() {
 function saveNew() {
   const data = packNew();
   const temp = -(Date.now() % 1000000000);
-  enqueue({ action: 'create', id: NEW.id, data, meta: { reqTime: D['Час звернення'] || '', respTime: D['Час відповіді'] || '' }, temp,
+  enqueue({ action: 'create', id: NEW.id, data, clientId: META.clientId || '', meta: { reqTime: D['Час звернення'] || '', respTime: D['Час відповіді'] || '' }, temp,
     label: data["Ім'я клієнта"] || splitContact(data['Контакт']).other || 'нова заявка' });
   store.del('draft');
   D = {}; META = {};
@@ -1269,12 +1284,13 @@ R.card = () => {
     const rows = s.f.filter(h => (col(h) > -1 || h === 'Instagram') && String(cardVal(o, h)).trim()).map(h => `<dt>${esc(h.replace(', грн', ''))}</dt><dd class="${FORMULA().includes(h) ? 'f' : ''}">${esc(h.endsWith('грн') || h === 'Мін. передоплата' || h === 'Залишок до оплати' ? (o[h] + ' грн') : cardVal(o, h))}</dd>`).join('');
     return `<section class="box"><div class="hd"><h3>${esc(s.t)}</h3>${Number(o['№']) < 0 ? '' : `<button type="button" class="ed" data-edit="${s.k}">Змінити</button>`}</div>${rows ? `<dl class="kv">${rows}</dl>` : '<p class="small">Не заповнено</p>'}</section>`;
   }).join('');
-  return `<div class="top line"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><span class="toptitle">№${numL(o)}${o._sheet === 'Клієнти' ? ' · архів' : ''}</span><button class="ib${S.loading ? ' spin' : ''}" id="reload" data-act="reload" aria-label="Оновити з таблиці">${ICON.refresh}</button></div>
+  return `<div class="top line"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><span class="toptitle">№${numL(o)}${o._sheet === 'Клієнти' ? ' · архів замовлень' : ''}</span><button class="ib${S.loading ? ' spin' : ''}" id="reload" data-act="reload" aria-label="Оновити з таблиці">${ICON.refresh}</button></div>
 <div class="body">
   <div class="hero"><h2 tabindex="-1">${esc(o["Ім'я клієнта"] || 'Без імені')}</h2>
     <span class="sub">${esc(o._contact || (o._insta ? '@' + o._insta : 'контакту немає'))}${o['Іменинник'] ? ' · ' + esc(o['Іменинник']) + (o['Вік'] ? ', ' + esc(o['Вік']) : '') : ''}</span>
     <span class="l2" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">${stPill(o['Статус'])}${nb}</span></div>
   ${contactLinks(o)}
+  ${orderClientHtml(o)}
   ${Number(o['№']) < 0 ? '<div class="note gold"><b>⏳ Заявка записується в таблицю</b><span class="mute">Змінювати поля можна, щойно з\'явиться №. Написати клієнту й додати нотатку можна вже зараз.</span></div><div class="row2"><button class="btn2" type="button" data-act="tpl">' + ICON.msg + ' Тексти</button><button class="btn2" type="button" data-act="note">' + ICON.pen + ' Нотатка</button></div>' : stepBox(o)}
   <button class="btn2" type="button" data-act="team">${ICON.team} Картка для команди</button>
   ${kzNote(o)}
@@ -1355,9 +1371,11 @@ function setCell(o, h, v) {
 }
 function applyLocal(job) {
   if (!S.data) return;
+  clDirty();
   if (job.action === 'create') {
     if (S.data.zayavky.some(r => Number(r.v[0]) === job.temp)) return;
     const d = Object.assign({ 'Статус': '1. Нова', 'Дата звернення': addDays(0) }, job.data);
+    if (job.clientId) d[CID] = job.clientId;
     const v = H().map(h => h === '№' ? String(job.temp) : d[h] === undefined ? '' : ['Чек, грн', 'Передоплата, грн'].includes(h) ? money(digits(d[h])) : String(d[h]));
     S.data.zayavky.push({ row: 0, v });
     return;
@@ -1406,7 +1424,7 @@ async function flush() {
   try {
     while (S.outbox.length) {
       const job = S.outbox[0];
-      const payload = job.action === 'create' ? { id: job.id, data: job.data, meta: job.meta }
+      const payload = job.action === 'create' ? Object.assign({ id: job.id, data: job.data, meta: job.meta }, job.clientId ? { clientId: job.clientId } : {})
         : job.action === 'note'
         ? { id: job.id, sheet: job.sheet, nomer: job.nomer, text: job.text, next: job.next, nextTime: job.nextTime }
         : job.action === 'step'
@@ -1507,6 +1525,7 @@ function voc(n) {   // кличний відмінок для імені мам�
 function gen(n, f) {   // родовий: «свято Софії», «для Тимура»
   n = String(n || '').trim().split(/\s+/)[0]; if (!n) return '';
   if (f && /ов$/i.test(n)) return n + 'і';   // Любов → Любові
+  if (!f && /^ігор$/i.test(n)) return n + 'я';   // Ігор → Ігоря (м'яка група)
   if (/ія$/i.test(n)) return n.slice(0, -1) + 'ї';
   if (/я$/i.test(n)) return n.slice(0, -1) + 'і';
   if (/[гкх]а$/i.test(n)) return n.slice(0, -1) + 'и';
@@ -1519,6 +1538,7 @@ function gen(n, f) {   // родовий: «свято Софії», «для Т
 function dat(n, f) {   // давальний: «Софії 14», «Тимуру 10»
   n = String(n || '').trim().split(/\s+/)[0]; if (!n) return '';
   if (f && /ов$/i.test(n)) return n + 'і';   // Любов → Любові
+  if (!f && /^ігор$/i.test(n)) return n + 'ю';   // Ігор → Ігорю
   if (/га$/i.test(n)) return n.slice(0, -2) + 'зі';   // Ольга → Ользі
   if (/ка$/i.test(n)) return n.slice(0, -2) + 'ці';   // Ніка → Ніці
   if (/ха$/i.test(n)) return n.slice(0, -2) + 'сі';
@@ -1704,7 +1724,20 @@ function tplCtx(o) {
   const ad = d('Оголошення') + ' ' + d('Коментар');
   const btnAge = /10[–-]12/.test(ad) ? '10–12 років' : /13[–-]14/.test(ad) ? '13–14 років' : '';
   const st = d('Початок');
-  return {
+  // Повторний продаж клієнту з бази: діти з «Дітей», остання гра з проведених свят клієнта (етап 3.3)
+  const rs = o['Статус'] === '8. Проведено' ? repeatOf(o) : null;
+  if (rs && rs.kids) {
+    const kf = k => k['Стать'] ? k['Стать'] !== 'Хлопчик' : f;
+    const nm = k => String(k["Ім'я"] || '').split(/\s+/)[0];
+    const ks = rs.kids.filter(nm);
+    const c = clientOf(o[CID]);
+    const g = c && c.games[0] ? c.games[0].p : lastProg;
+    if (ks.length) return Object.assign(tplCtxBase(), { kid: ks.map(nm).join(' та '), kidGen: ks.map(k => gen(nm(k), kf(k))).join(' та '),
+      kidDat: ks.map(k => dat(nm(k), kf(k))).join(' та '), lastGame: g ? progFmt(g) : '' });
+    if (g) return Object.assign(tplCtxBase(), { lastGame: progFmt(g) });
+  }
+  return tplCtxBase();
+  function tplCtxBase() { return {
     mama: callName(o), kid, kidGen: gen(kid, f), kidDat: dat(kid, f),
     age: age || '', guests: num('Гостей') || '',
     date: pd ? pd.getDate() + ' ' + MONTHS_G[pd.getMonth()] : '', wd: pd ? WEEKDAYS[pd.getDay()] : '',
@@ -1721,7 +1754,7 @@ function tplCtx(o) {
     pay: (S.me.pay || '').trim() || 'Реквізити для оплати на рахунок Monobank:\n[реквізити, ім\'я та прізвище отримувача]',
     hl: (S.me.video || '').trim(),
     me: myName() || 'Юлія'
-  };
+  }; }
 }
 const PH = { mama: "ім'я клієнтки", kid: "ім'я дитини", kidGen: "ім'я дитини", kidDat: "ім'я дитини", age: 'вік', guests: 'гостей', date: 'дата', wd: 'день тижня',
   time: 'час', arrive: 'час приїзду команди', addr: 'адреса', program: 'програма', programRaw: 'програма', duration: 'тривалість', sum: 'сума', sumMinus: 'сума − 1 000', pre: 'передоплата', preGot: 'передоплата',
@@ -1818,18 +1851,71 @@ function stepOf(o) {
   const stored = BY_LABEL[String(o['Крок'] || '').trim()];
   const nc = o['Наступний контакт'], tm = String(o['Час контакту'] || '');
   if (o._sheet === 'Клієнти') {
-    const ak = parseD(o['Нагадати про ДН']);
-    if (!ak) return st === NB && !o['Причина відмови'] ? { key: 'noreason', due: addDays(0) } : null;
-    const n = Math.round((ak - today0()) / 864e5);
-    if (n > 0 || n < -14) return null;
-    if (stored === 'repeatsent' && repeatSentFor(o, ak)) return null;
-    return { key: 'repeat', due: fmtD(ak) };
+    if (!parseD(o['Нагадати про ДН']) && st === NB && !o['Причина відмови']) return { key: 'noreason', due: addDays(0) };
+    return repeatOf(o);
   }
   if (st === NB) return o['Причина відмови'] ? null : { key: 'noreason', due: addDays(0) };
-  if (st === '8. Проведено') return null;
+  if (st === '8. Проведено') return repeatOf(o);
   if (stored && FLOW[stored].sts.includes(st)) return { key: stored, due: nc || addDays(0), time: tm };
   const r0 = stepDefault(o, st, nc, tm); if (r0) r0.auto = 1; return r0;
 }
+/* Повторний продаж (аудит В6, етап 3.3). Клієнт з бази: одна задача на ДН дитини з «Дітей», а не на кожне минуле замовлення.
+   Дата задачі = ДН мінус 6 тижнів, задача видна 14 днів, як і раніше. Діти з ДН у межах 30 днів від найближчого — одна задача з усіма іменами.
+   Задача лише в клієнта з проведеним святом, без активного замовлення і без свята в межах 90 днів від цього ДН.
+   Дитині виповнюється 16 і більше — задачі немає (рішення Діма 23.11).
+   Задача й позначка «надіслано» живуть на останньому проведеному святі цих дітей (крок «Повторний продаж надіслано», як було).
+   Дитина без дати в «Дітях»: від «Нагадати про ДН» її останнього свята. Клієнт без жодної дитини з датою: від «Нагадати про ДН»
+   останнього свята. Замовлення без клієнта: як раніше, від «Нагадати про ДН» */
+const REP_LEAD = 42, REP_SHOW = 14, REP_AGE = 16, REP_NEAR = 90, REP_GROUP = 30;
+const recKey = o => o._sheet + '|' + o['№'];
+// Імена дітей із «Іменинника», як kidsFromOrder_ у бекенді: «Марія та Андрій» → два ключі
+const kidKeys = o => String(o['Іменинник'] || '').split(/\s*(?:,|;|\/|&|\+|\sта\s|\sі\s|\sи\s)\s*/).map(ckey).filter(Boolean);
+function repeatPlan() {
+  const m = CL();
+  if (m.rep) return m.rep;
+  const rep = m.rep = { by: {}, own: new Set() };
+  m.list.forEach(c => {
+    c.orders.forEach(o => rep.own.add(recKey(o)));
+    if (c.active.length || !c.done.length) return;
+    const done = c.done.slice().sort((a, b) => (parseD(b['Дата свята']) || 0) - (parseD(a['Дата свята']) || 0));
+    const dated = c.kids.map(k => ({ k, b: bdayInfo(k), key: ckey(k["Ім'я"]) })).filter(x => x.b);
+    const dkeys = dated.map(x => x.key).filter(Boolean);
+    // Без дати: останнє свято кожної дитини, якої немає серед дітей з датою; без жодної дати — просто останнє свято
+    const legacy = dated.length ? done.filter(o => { const n = kidKeys(o); return n.length && !n.some(x => dkeys.includes(x)); }) : done.slice(0, 1);
+    const seen = new Set();
+    legacy.forEach(o => { const k = kidKeys(o).join('|'); if (seen.has(k)) return; seen.add(k); rep.by[recKey(o)] = { legacy: 1 }; });
+    const near = x => c.orders.some(o => { const p = parseD(o['Дата свята']); return p && Math.abs(p - x.b.next) <= REP_NEAR * 864e5; });
+    const groups = [];
+    dated.filter(x => x.b.turns < REP_AGE && !near(x)).sort((a, b) => a.b.days - b.b.days).forEach(x => {
+      const g = groups[groups.length - 1];
+      if (g && x.b.days - g[0].b.days <= REP_GROUP) g.push(x); else groups.push([x]);
+    });
+    groups.forEach(g => {
+      if (g[0].b.days > REP_LEAD || g[0].b.days < REP_LEAD - REP_SHOW) return;
+      const ks = g.map(x => x.key);
+      const anchor = done.find(o => kidKeys(o).some(n => ks.includes(n))) || done.find(o => !rep.by[recKey(o)]) || done[0];
+      const ak = new Date(g[0].b.next); ak.setDate(ak.getDate() - REP_LEAD);
+      rep.by[recKey(anchor)] = { ak, kids: g.map(x => x.k), bd: g.map(x => x.b) };
+    });
+  });
+  return rep;
+}
+function repeatOf(o) {
+  if (o['Статус'] !== '8. Проведено') return null;
+  const sent = ak => BY_LABEL[String(o['Крок'] || '').trim()] === 'repeatsent' && repeatSentFor(o, ak);
+  const p = repeatPlan(), x = p.by[recKey(o)];
+  if (p.own.has(recKey(o)) && !x) return null;
+  if (x && x.kids) return sent(x.ak) ? null : { key: 'repeat', due: fmtD(x.ak), kids: x.kids, bd: x.bd };
+  const ak = parseD(o['Нагадати про ДН']);
+  if (!ak) return null;
+  const n = Math.round((ak - today0()) / 864e5);
+  if (n > 0 || n < -REP_SHOW) return null;
+  const age = Number(digits(o['Вік'])) || 0;
+  if (age && age + 1 >= REP_AGE) return null;
+  return sent(ak) ? null : { key: 'repeat', due: fmtD(ak) };
+}
+// «ДН ≈14.03, буде 13» для задачі повторного продажу
+const repBd = s => (s.kids || []).map((k, i) => { const b = s.bd[i]; return `${k["Ім'я"] || 'дитина'}: ДН ${b.approx ? '≈' : ''}${pad(b.next.getDate())}.${pad(b.next.getMonth() + 1)}, буде ${b.turns}`; }).join(' · ');
 // Повторний продаж уже надіслано саме для цього нагадування? (аудит К5)
 // Дата надсилання: «Наступний контакт» (з етапу 2), для старих записів рядок «дд.мм …: Надіслано: повторний продаж» у коментарі.
 // Надіслане раніше ніж за 30 днів до нагадування належить минулому року: задача з'являється знову
@@ -1945,7 +2031,7 @@ function taskCard(x) {
     <div class="l1"><button type="button" class="nm" data-open="${esc(o['№'])}">${esc(who)}</button><span class="no">№${numL(o)}</span></div>
     <div class="stp">${esc(fl.label)}${s.key === 'call' && s.time ? ' о ' + esc(s.time) : ''}</div>
     <div class="wh">${esc(fl.what)}</div>
-    <div class="l2">${stPill(o['Статус'])}${dueBadge(s)}${fl.who === 'Юлія' ? '<span class="whotag">веде Юлія</span>' : ''}${o['Дата свята'] ? `<span>свято ${esc(o['Дата свята'].slice(0, 5))}</span>` : ''}</div>
+    <div class="l2">${stPill(o['Статус'])}${dueBadge(s)}${fl.who === 'Юлія' ? '<span class="whotag">веде Юлія</span>' : ''}${s.kids ? `<span>${esc(repBd(s))}</span>` : o['Дата свята'] ? `<span>свято ${esc(o['Дата свята'].slice(0, 5))}</span>` : ''}</div>
     ${flag ? `<div class="flagtxt">⚑ ${esc(flag)}</div>` : ''}
     ${o['Коментар'] ? `<div class="cm">${esc(lastLine(o['Коментар']))}</div>` : ''}
     <div class="fa"><button type="button" class="main" data-flow="${esc(o['№'])}">${esc(main)}</button>${canAns ? `<button type="button" data-ans="${esc(o['№'])}">Відповіла</button>` : '<span></span>'}<button type="button" class="more" data-more="${esc(o['№'])}" aria-label="Інше">⋯</button></div>
@@ -2456,12 +2542,557 @@ function reportText() {
   return L2.join('\n');
 }
 
+/* ====== КЛІЄНТИ (етап 3.2, аудит К8): «База клієнтів» і «Діти» з init, картка клієнта, «Перевірте» ======
+   Таблиця: рядок 1 — заголовки, колонка A — ID (К-0001, Д-0001). Кількість свят, суми й ігри не зберігаються:
+   рахуються тут із замовлень за «Клієнт ID». Записи бази йдуть одразу (без черги): дії client, child, merge, notSame, bindOrder */
+const CID = 'Клієнт ID';
+const MISTAKE = 'Помилково внесено';
+const CONSENT_L = ['Так', 'Без облич', 'Ні'];
+const PRECISION_L = ['Точна', 'За датою свята', 'Невідома'];
+const hasBase = () => !!(S.data && S.data.baza && S.data.baza.headers && S.data.baza.headers.length);
+function bzRecs(key) {
+  const t = S.data && S.data[key];
+  if (!t || !t.headers) return [];
+  return t.rows.map(r => {
+    const o = { _row: r.row };
+    t.headers.forEach((h, i) => { if (h) o[h] = r.v[i] == null ? '' : String(r.v[i]).trim(); });
+    return o;
+  }).filter(o => o[t.headers[0]]);
+}
+const listOf = s => String(s == null ? '' : s).split(/\s*[,;\n]\s*/).map(x => x.trim()).filter(Boolean);
+// Як nick_ і kidKey_ у бекенді: однакові ключі на сайті й у таблиці
+const nickOf = s => String(s == null ? '' : s).trim().replace(/^.*instagram\.com\//i, '').replace(/^@/, '').replace(/[\/?#].*$/, '').toLowerCase();
+const ckey = s => String(s == null ? '' : s).toLowerCase().replace(/ё/g, 'е').replace(/[єэ]/g, 'е').replace(/[іїыйi]/g, 'и').replace(/[^a-zа-яґ]/g, '');
+// Ключі прив'язки з «Контакту» замовлення, як contactKeys_ у бекенді: телефони 0XXXXXXXXX і ніки Instagram
+function orderKeys(o) {
+  const ph = [], ni = [];
+  listOf(o['Контакт']).forEach(p => {
+    const m = p.match(/instagram\.com\/([^\/?#\s]+)/i);
+    if (m) { const n = nickOf(m[1]); if (n && n !== 'direct' && !/\/direct\//i.test(p) && !ni.includes(n)) ni.push(n); return; }
+    if (/^@[\w.]+$/.test(p)) { const n = nickOf(p); if (!ni.includes(n)) ni.push(n); return; }
+    const x = /[a-zа-яіїєґ_]/i.test(p) ? '' : normPhone(p);
+    if (/^0\d{9}$/.test(x) && !ph.includes(x)) ph.push(x);
+  });
+  return { phones: ph, nicks: ni };
+}
+const pairKey = (a, b) => [String(a), String(b)].sort().join('|');
+const isActive = o => o._sheet === 'Заявки' && !CLOSED.includes(o['Статус']);
+const whenOf = o => parseD(o['Дата свята']) || parseD(o['Дата звернення']) || null;
+
+// Модель бази на один показ екрана (скидається в show, render, load і після кожного запису)
+let CLM = null;
+const clDirty = () => { CLM = null; };
+function CL() {
+  if (CLM) return CLM;
+  const m = { list: [], by: {}, former: {}, idx: {}, orders: [] };
+  if (!hasBase()) return (CLM = m);
+  const kidsBy = {};
+  bzRecs('dity').forEach(k => { (kidsBy[k[CID]] = kidsBy[k[CID]] || []).push(k); });
+  bzRecs('baza').forEach(r => {
+    const id = r[CID];
+    const c = { id, r, name: r["Ім'я"] || '', phones: listOf(r['Телефони']).map(normPhone), nicks: listOf(r['Instagram']).map(nickOf).filter(Boolean),
+      other: listOf(r['Інші контакти']), kids: kidsBy[id] || [], orders: [] };
+    m.list.push(c); m.by[id] = c;
+    listOf(r['Колишні ID']).forEach(x => { m.former[x] = id; });
+    c.phones.forEach(p => { const a = m.idx['p' + p] = m.idx['p' + p] || []; if (!a.includes(id)) a.push(id); });
+    c.nicks.forEach(n => { const a = m.idx['i' + n] = m.idx['i' + n] || []; if (!a.includes(id)) a.push(id); });
+  });
+  m.orders = allRecs().filter(o => o['Статус'] !== MISTAKE);
+  m.orders.forEach(o => { const c = m.by[clCur(m, o[CID])]; if (c) c.orders.push(o); });
+  m.list.forEach(c => {
+    c.orders.sort((a, b) => (isActive(b) - isActive(a)) || ((whenOf(b) || 0) - (whenOf(a) || 0)));
+    c.active = c.orders.filter(isActive);
+    c.done = c.orders.filter(o => o['Статус'] === '8. Проведено');
+    c.sum = c.done.reduce((t, o) => t + (Number(digits(o['Чек, грн'])) || 0), 0);
+    const parties = c.orders.map(o => parseD(o['Дата свята'])).filter(d => d && d <= today0()).sort((a, b) => b - a);
+    c.last = parties[0] || null;
+    c.recent = Math.max(0, ...c.orders.map(o => +(whenOf(o) || 0)), +(parseD(c.r['Створено']) || 0));
+    c.games = [];
+    c.done.forEach(o => { const p = String(o['Програма'] || '').trim(); const d = parseD(o['Дата свята']); if (p && p !== 'Інше' && !c.games.some(g => g.p === p)) c.games.push({ p, y: d ? d.getFullYear() : '' }); });
+  });
+  return (CLM = m);
+}
+function clCur(m, id) { id = String(id || '').trim(); if (!id) return ''; return m.by[id] ? id : (m.former[id] || ''); }
+const clientOf = id => { const m = CL(); return m.by[clCur(m, id)] || null; };
+function clMatchIds(keys) {
+  const m = CL(), ids = [];
+  keys.phones.forEach(p => (m.idx['p' + p] || []).forEach(id => { if (!ids.includes(id)) ids.push(id); }));
+  keys.nicks.forEach(n => (m.idx['i' + n] || []).forEach(id => { if (!ids.includes(id)) ids.push(id); }));
+  return ids;
+}
+const clContact = c => c.phones[0] || (c.nicks[0] ? '@' + c.nicks[0] : c.other[0] || '');
+const idNumOf = id => { const x = String(id || '').match(/(\d+)\s*$/); return x ? Number(x[1]) : 0; };
+
+// Пошук: ім'я, телефон, нік, ім'я дитини, ID, № замовлення, дата свята або ДН («14.03», «14.03.2025», «14.03.25»)
+function clMatch(c, q) {
+  q = String(q || '').trim().toLowerCase();
+  if (!q) return true;
+  const dm = q.match(/^(\d{1,2})[.\/](\d{1,2})(?:[.\/](\d{2}|\d{4}))?$/);
+  if (dm) {
+    const d = +dm[1], mo = +dm[2], y = dm[3] ? (dm[3].length === 2 ? 2000 + +dm[3] : +dm[3]) : 0;
+    const hit = x => x && x.getDate() === d && x.getMonth() + 1 === mo && (!y || x.getFullYear() === y);
+    return c.orders.some(o => hit(parseD(o['Дата свята']))) || c.kids.some(k => hit(parseD(k['Дата народження'])));
+  }
+  if (/^к-?\d+$/.test(q)) { const n = Number(q.replace(/\D/g, '')); return idNumOf(c.id) === n || listOf(c.r['Колишні ID']).some(x => idNumOf(x) === n); }
+  if (/^[\d\s+()\-]+$/.test(q)) {
+    let qd = digits(q);
+    if (qd.length <= 4 && c.orders.some(o => String(o['№']) === qd)) return true;
+    if (qd.length < 3) return false;
+    if (qd.startsWith('380')) qd = '0' + qd.slice(3);
+    return c.phones.some(p => p.includes(qd)) || c.orders.some(o => digits(o['Контакт']).replace(/^380/, '0').includes(qd));
+  }
+  const words = [c.name, c.nicks.join(' '), c.other.join(' '), c.id].concat(c.kids.map(k => k["Ім'я"]), c.orders.map(o => o["Ім'я клієнта"] + ' ' + o['Іменинник'])).join(' ').toLowerCase();
+  if (words.includes(q.replace(/^@/, ''))) return true;
+  const kq = ckey(q);
+  return kq.length >= 2 && ckey(words).includes(kq);
+}
+const workKey = o => { const n = daysTo(o['Наступний контакт']); return n === null ? -0.5 : n; };
+function clSearch(q, limit) {
+  const hits = CL().list.filter(c => clMatch(c, q));
+  const actKey = c => c.active.length ? Math.min(...c.active.map(workKey)) : Infinity;
+  return hits.sort((a, b) => (actKey(a) - actKey(b)) || (b.recent - a.recent) || (idNumOf(b.id) - idNumOf(a.id))).slice(0, limit || 1e9);
+}
+
+// Дитина: вік сьогодні, найближчий ДН, скільки виповниться. 29.02 у невисокосний рік — 28.02
+function bdayInfo(k, at) {
+  const dob = parseD(k['Дата народження']);
+  if (!dob) return null;
+  const t = at ? new Date(at) : today0(); t.setHours(0, 0, 0, 0);
+  const on = y => { const leap = (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0; return new Date(y, dob.getMonth(), dob.getMonth() === 1 && dob.getDate() === 29 && !leap ? 28 : dob.getDate()); };
+  let nb = on(t.getFullYear());
+  if (nb < t) nb = on(t.getFullYear() + 1);
+  const turns = nb.getFullYear() - dob.getFullYear();
+  const days = Math.round((nb - t) / 86400000);
+  return { age: days === 0 ? turns : turns - 1, turns, days, next: nb, approx: k['Точність дати'] === 'За датою свята' };
+}
+function kidText(k) {
+  const b = bdayInfo(k);
+  if (!b) return 'вік невідомий' + (k['Примітка'] ? ' · ' + k['Примітка'] : '');
+  const a = b.approx ? '≈' : '';
+  const dm = pad(b.next.getDate()) + '.' + pad(b.next.getMonth() + 1);
+  const soon = b.days === 0 ? ` · ДН сьогодні, ${b.turns} ${rokiv(b.turns)}` : b.days <= 60 ? ` · ДН ${a}${dm}, через ${b.days} ${dayWord(b.days)}, буде ${b.turns}` : ` · ДН ${a}${dm}`;
+  return `${a}${b.age} ${rokiv(b.age)}${soon}`;
+}
+
+// «Перевірте»: замовлення без клієнта (без контакту, кілька збігів, ID, якого немає в базі), можливі дублі замовлень
+// (той самий клієнт, свята в межах 3 днів), можливо той самий клієнт (однакове ім'я дитини, рік народження ±1, або спільний контакт).
+// «Різні» запам'ятовується в таблиці дією notSame: пара ID клієнтів або пара «№7|№10»
+function checkList() {
+  const out = { orders: [], dup: [], same: [] };
+  if (!hasBase() || col(CID) < 0) return out;
+  const m = CL();
+  const ns = new Set(S.data.notSame || []);
+  m.orders.forEach(o => {
+    if (Number(o['№']) <= 0) return;
+    const id = String(o[CID] || '').trim();
+    if (id) { if (!clCur(m, id)) out.orders.push({ o, why: 'lost', ids: [] }); return; }
+    const k = orderKeys(o);
+    if (!k.phones.length && !k.nicks.length) { out.orders.push({ o, why: 'nokey', ids: [] }); return; }
+    const ids = clMatchIds(k);
+    if (ids.length > 1) out.orders.push({ o, why: 'multi', ids });
+  });
+  m.list.forEach(c => {
+    const ps = c.orders.filter(o => parseD(o['Дата свята']) && Number(o['№']) > 0);
+    for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) {
+      const a = ps[i], b = ps[j];
+      if (Math.abs(parseD(a['Дата свята']) - parseD(b['Дата свята'])) <= 3 * 86400000 && !ns.has(pairKey('№' + a['№'], '№' + b['№'])))
+        out.dup.push({ c, a, b });
+    }
+  });
+  const seen = new Set();
+  const add = (x, y, why) => {
+    if (!x || !y || x.id === y.id) return;
+    const pk = pairKey(x.id, y.id);
+    if (seen.has(pk) || ns.has(pk)) return;
+    seen.add(pk);
+    const first = idNumOf(x.id) < idNumOf(y.id);
+    out.same.push({ a: first ? x : y, b: first ? y : x, why });
+  };
+  Object.keys(m.idx).forEach(k => { const ids = m.idx[k]; for (let i = 1; i < ids.length; i++) add(m.by[ids[0]], m.by[ids[i]], 'спільний контакт ' + (k[0] === 'p' ? k.slice(1) : '@' + k.slice(1))); });
+  const byKid = {};
+  m.list.forEach(c => c.kids.forEach(k => { const d = parseD(k['Дата народження']); const key = ckey(k["Ім'я"]); if (key && d) (byKid[key] = byKid[key] || []).push({ c, y: d.getFullYear(), n: k["Ім'я"] }); }));
+  Object.keys(byKid).forEach(key => { const a = byKid[key]; for (let i = 0; i < a.length; i++) for (let j = i + 1; j < a.length; j++) if (Math.abs(a[i].y - a[j].y) <= 1) add(a[i].c, a[j].c, `дитина ${a[i].n}, ${a[i].y} і ${a[j].n}, ${a[j].y}`); });
+  return out;
+}
+const checkCount = x => x.orders.length + x.dup.length + x.same.length;
+
+// Локально після відповіді бекенду: рядок бази або дитини за ID
+function upTab(key, row, v) {
+  const t = S.data[key];
+  if (!t || !t.rows || !v || !v.length) return;
+  const id = String(v[0]).trim();
+  const i = t.rows.findIndex(r => String(r.v[0]).trim() === id);
+  if (i > -1) t.rows[i] = { row: row || t.rows[i].row, v }; else t.rows.push({ row, v });
+  clDirty(); store.set('data', S.data);
+}
+function dropTab(key, id) {
+  const t = S.data[key];
+  if (!t || !t.rows) return;
+  t.rows = t.rows.filter(r => String(r.v[0]).trim() !== String(id));
+  clDirty(); store.set('data', S.data);
+}
+// Запис у базу одразу, без черги: кнопка чекає відповіді, помилка показується під формою, введене не зникає
+let liveBusy = false;
+async function live(btn, action, payload) {
+  if (liveBusy) return null;
+  liveBusy = true;
+  const html = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Зберігаю…'; }
+  const box = $('#liveerr'); if (box) box.hidden = true;
+  try { return await api(action, payload); }
+  catch (e) {
+    if (e.code === 'pin' || e.code === 'locked') { go('pin', { msg: e.message }); return null; }
+    const b = $('#liveerr');
+    if (b) { b.hidden = false; b.innerHTML = `<p><b>Не збережено.</b> ${esc(e.message)}</p><p class="small">Введене не зникло. Спробуйте ще раз.</p>`; b.scrollIntoView({ block: 'center' }); }
+    else toast(e.message, 5000);
+    return null;
+  } finally {
+    liveBusy = false;
+    if (btn && btn.isConnected) { btn.disabled = false; btn.innerHTML = html; }
+  }
+}
+const liveErr = () => '<div class="fail" id="liveerr" hidden></div>';
+
+/* --- Розділ «Клієнти» --- */
+function citemHtml(c, attr) {
+  const kids = c.kids.map(k => k["Ім'я"]).filter(Boolean).join(', ');
+  const act = c.active.length ? c.active.slice().sort(workSort)[0] : null;
+  return `<button type="button" class="item" ${attr || `data-client="${esc(c.id)}"`}>
+    <span class="l1"><span class="nm">${esc(c.name || 'Без імені')}</span><span class="no">${esc(c.id)}</span></span>
+    <span class="l2">${act ? stPill(act['Статус']) : ''}${clContact(c) ? `<span>${esc(clContact(c))}</span>` : ''}${kids ? `<span>${esc(kids)}</span>` : ''}${c.done.length ? `<span>свят: ${c.done.length}</span>` : ''}${c.last ? `<span>останнє ${esc(fmtD(c.last))}</span>` : ''}</span>
+  </button>`;
+}
+const CL_LIMIT = 80;
+function citemsHtml() {
+  const all = clSearch(S.cq);
+  if (!all.length) return `<p class="empty">${S.cq.trim() ? 'Нікого не знайдено' : 'Клієнтів ще немає'}</p>`;
+  return all.slice(0, CL_LIMIT).map(c => citemHtml(c)).join('') + (all.length > CL_LIMIT ? `<p class="small">Показано ${CL_LIMIT} з ${all.length}. Решту знайдіть пошуком.</p>` : '');
+}
+R.clients = () => {
+  if (!S.data) return `${topMain()}<div class="load">Завантажую…</div>${navHtml('clients')}`;
+  if (!hasBase()) return `${topMain()}<div class="body"><h1 tabindex="-1">Клієнти</h1><p class="empty">Бази клієнтів ще немає в таблиці. Вона з'явиться, коли нову версію CRM запустять на таблиці.</p></div>${navHtml('clients')}`;
+  const ch = checkCount(checkList());
+  return `${topMain()}
+<div class="body">
+  <div class="search">${ICON.search}<input id="cq" type="search" placeholder="Ім'я, телефон, нік, дитина або 14.03" value="${esc(S.cq)}" aria-label="Пошук клієнта" autocomplete="off"></div>
+  ${ch ? `<button type="button" class="note gold" data-act="check" style="text-align:left;cursor:pointer;color:var(--fg)"><b>Перевірте · ${ch}</b><span class="mute">Замовлення без клієнта, можливі дублі</span></button>` : ''}
+  <div class="list" id="citems">${citemsHtml()}</div>
+  <p class="stamp">У базі клієнтів: ${CL().list.length}</p>
+</div>
+${navHtml('clients')}`;
+};
+AFTER.clients = () => {
+  const q = $('#cq');
+  if (q) q.addEventListener('input', () => { S.cq = q.value; $('#citems').innerHTML = citemsHtml(); });
+  autoLoad();
+};
+
+/* --- Картка клієнта --- */
+const noClient = t => `<div class="top"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><span class="toptitle">${esc(t || '')}</span><span class="sp44"></span></div><div class="body"><p class="empty">Клієнта не знайдено. Можливо, його об'єднали з іншим. Оновіть дані.</p></div>`;
+R.client = () => {
+  const c = clientOf(P.id);
+  if (!c) return noClient(P.id);
+  if (c.id !== P.id) P.id = c.id;   // колишній ID → поточний
+  const r = c.r;
+  const know = String(r['Що знати'] || '').trim();
+  const consent = r['Згода на фото'] ? r['Згода на фото'] + (r['Згода: дата'] ? ' · ' + r['Згода: дата'] : '') + (r['Згода: як отримано'] ? ' · ' + r['Згода: як отримано'] : '') : 'не питали';
+  const kv = [['Телефони', c.phones.join(', ')], ['Instagram', c.nicks.map(n => '@' + n).join(', ')], ['Інші контакти', c.other.join(', ')],
+    ['Згода на фото', consent], ['Перше джерело', r['Перше джерело']], ['Перше звернення', r['Перше звернення']], ['Колишні ID', r['Колишні ID']]]
+    .filter(x => String(x[1] || '').trim()).map(([h, v]) => `<dt>${esc(h)}</dt><dd>${esc(v)}</dd>`).join('');
+  return `<div class="top line"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><span class="toptitle">${esc(c.id)}</span><button class="ib${S.loading ? ' spin' : ''}" id="reload" data-act="reload" aria-label="Оновити з таблиці">${ICON.refresh}</button></div>
+<div class="body">
+  <div class="hero"><h2 tabindex="-1">${esc(c.name || 'Без імені')}</h2>
+    <span class="sub">${esc(clContact(c) || 'контакту немає')}${c.done.length ? ` · свят: ${c.done.length}${c.sum ? ' на ' + money(c.sum) + ' грн' : ''}` : ''}</span>
+    ${c.active.length ? `<span class="l2" style="display:flex;flex-wrap:wrap;gap:8px">${c.active.map(o => stPill(o['Статус'])).join('')}</span>` : ''}</div>
+  ${contactLinks({ _contact: c.phones.join(', '), _insta: c.nicks[0] || '' })}
+  ${know ? `<div class="note gold"><b>Що знати</b><span style="white-space:pre-line">${esc(know)}</span><button type="button" class="act" data-act="client-edit">Змінити</button></div>`
+    : '<button class="link" type="button" data-act="client-edit">Додати, що знати про клієнта</button>'}
+  ${r['Кампанія'] ? `<div class="note ok"><b>Кампанія ${esc(r['Кампанія'])}</b>${r['Написати'] ? `<span>Написати ${esc(r['Написати'])}</span>` : ''}</div>` : ''}
+  <button class="btn pink" type="button" data-act="new-for">${ICON.plus} Нове замовлення</button>
+  <section class="box"><div class="hd"><h3>Діти${c.kids.length ? ' · ' + c.kids.length : ''}</h3><button type="button" class="ed" data-act="kid-new">Додати</button></div>
+    ${c.kids.length ? `<div class="list">${c.kids.map(k => `<button type="button" class="item" data-kid="${esc(k['Дитина ID'])}"><span class="l1"><span class="nm">${esc(k["Ім'я"] || 'Без імені')}</span><span class="no">${esc(k['Стать'] || '')}</span></span><span class="l2"><span>${esc(kidText(k))}</span>${k['Що любить'] ? `<span>любить: ${esc(k['Що любить'])}</span>` : ''}</span></button>`).join('')}</div>` : '<p class="small">Дітей не додано</p>'}
+  </section>
+  ${c.games.length ? `<section class="box"><div class="hd"><h3>Уже грали</h3></div><p class="small" style="color:var(--fg)">${c.games.map(g => esc(g.p) + (g.y ? ' (' + g.y + ')' : '')).join(', ')}</p></section>` : ''}
+  <section class="box"><div class="hd"><h3>Замовлення · ${c.orders.length}</h3></div>${c.orders.length ? `<div class="list">${c.orders.map(histItem).join('')}</div>` : '<p class="small">Замовлень ще немає</p>'}</section>
+  <section class="box"><div class="hd"><h3>Дані клієнта</h3><button type="button" class="ed" data-act="client-edit">Змінити</button></div>${kv ? `<dl class="kv">${kv}</dl>` : '<p class="small">Не заповнено</p>'}</section>
+  <button class="link" type="button" data-act="merge-pick">Це та сама людина, що інший клієнт? Об'єднати</button>
+</div>`;
+};
+AFTER.client = autoLoad;
+
+const CF = [["Ім'я", 'text', 'Як звертатися'], ['Телефони', 'tel', '0XX XXX XX XX, кілька через кому'], ['Instagram', 'nick', '@нік, кілька через кому'],
+  ['Інші контакти', 'text', 'Telegram, пошта'], ['Що знати', 'area', 'Побажання, з ким не працювати, що вже обіцяли'],
+  ['Згода на фото', 'consent'], ['Згода: як отримано', 'text', 'Наприклад, у Direct 23.11']];
+function cfInput(h, type, ph, v) {
+  const id = 'cf' + Math.abs(hash(h));
+  const x = type === 'area' ? `<textarea id="${id}" data-cf="${esc(h)}" placeholder="${esc(ph)}">${esc(v)}</textarea>`
+    : type === 'consent' || type === 'sel' ? `<select id="${id}" data-cf="${esc(h)}" class="csel">${[''].concat(ph).map(o => `<option value="${esc(o)}"${o === v ? ' selected' : ''}>${esc(o || '—')}</option>`).join('')}</select>`
+    : type === 'date' ? `<input id="${id}" data-cf="${esc(h)}" type="date" value="${dToIso(v)}">`
+    : `<input id="${id}" data-cf="${esc(h)}" type="${type === 'tel' ? 'tel' : 'text'}"${type === 'nick' ? ' autocapitalize="off" autocorrect="off" spellcheck="false"' : ''} value="${esc(v)}" placeholder="${esc(ph || '')}" autocomplete="off">`;
+  return `<div class="field"><label class="flabel" for="${id}">${esc(h)}</label>${x}</div>`;
+}
+R.cedit = () => {
+  const c = clientOf(P.id);
+  if (!c) return noClient(P.id);
+  return `<div class="top"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><span class="toptitle">${esc(c.id)} · дані</span><span class="sp44"></span></div>
+<div class="body"><h2 tabindex="-1">${esc(c.name || 'Клієнт')}</h2>
+${CF.map(([h, t, ph]) => cfInput(h, t, t === 'consent' ? CONSENT_L : ph, h === 'Телефони' ? c.phones.join(', ') : h === 'Instagram' ? c.nicks.map(n => '@' + n).join(', ') : (c.r[h] || ''))).join('')}
+<p class="small">Згода без дати отримає сьогоднішню. Телефони й ніки таблиця приведе до одного вигляду.</p>
+${liveErr()}</div>
+<div class="dock"><button class="btn" type="button" data-act="client-save">Зберегти</button></div>`;
+};
+const cfVals = () => { const o = {}; view.querySelectorAll('[data-cf]').forEach(el => { o[el.dataset.cf] = el.type === 'date' ? isoToD(el.value) : String(el.value || '').trim(); }); return o; };
+const showLiveErr = html => { const b = $('#liveerr'); if (b) { b.hidden = false; b.innerHTML = html; b.scrollIntoView({ block: 'center' }); } };
+async function clientSave(btn) {
+  const c = clientOf(P.id);
+  if (!c) return;
+  const v = cfVals();
+  if (!v["Ім'я"]) { showLiveErr('<p><b>Вкажіть ім\'я.</b></p>'); return; }
+  const norm = (h, x) => h === 'Телефони' ? listOf(x).map(normPhone).join(', ') : h === 'Instagram' ? listOf(x).map(nickOf).filter(Boolean).join(', ') : String(x || '').trim();
+  const now = h => h === 'Телефони' ? c.phones.join(', ') : h === 'Instagram' ? c.nicks.join(', ') : String(c.r[h] || '').trim();
+  const changes = {};
+  Object.keys(v).forEach(h => { const to = norm(h, v[h]); if (to !== now(h)) changes[h] = { from: c.r[h] || '', to }; });
+  if (!Object.keys(changes).length) { back(); return; }
+  const r = await live(btn, 'client', { id: P.op, clientId: c.id, changes });
+  if (!r) return;
+  P.op = uid();
+  upTab('baza', r.row, r.v);
+  if (r.conflicts && r.conflicts.length) {
+    showLiveErr(`<p><b>Частину не записано:</b> ${r.conflicts.map(x => `«${esc(x.field)}» хтось змінив у таблиці, там зараз: ${esc(x.now || 'порожньо')}`).join('; ')}.</p><p class="small">Решту збережено. Перевірте поле й збережіть ще раз, якщо треба.</p>`);
+    return;
+  }
+  toast('Збережено'); back();
+}
+
+/* --- Дитина --- */
+R.kid = () => {
+  const c = clientOf(P.cid);
+  if (!c) return noClient(P.cid);
+  const k = P.kid ? c.kids.find(x => x['Дитина ID'] === P.kid) : {};
+  if (!k) return noClient(P.kid);
+  const sexes = L('Стать').length ? L('Стать') : ['Дівчинка', 'Хлопчик'];
+  return `<div class="top"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><span class="toptitle">${esc(c.name || c.id)} · ${P.kid ? 'дитина' : 'нова дитина'}</span><span class="sp44"></span></div>
+<div class="body"><h2 tabindex="-1">${esc(k["Ім'я"] || 'Нова дитина')}</h2>
+${cfInput("Ім'я", 'text', "Ім'я дитини", k["Ім'я"] || '')}
+${cfInput('Дата народження', 'date', '', k['Дата народження'] || '')}
+${cfInput('Точність дати', 'sel', PRECISION_L, k['Точність дати'] || '')}
+<p class="small">Якщо змінити дату й не чіпати точність, таблиця поставить «Точна».</p>
+${cfInput('Стать', 'sel', sexes, k['Стать'] || '')}
+${cfInput('Що любить', 'text', 'Ігри, герої, теми', k['Що любить'] || '')}
+${cfInput('Примітка', 'area', '', k['Примітка'] || '')}
+${liveErr()}
+${P.kid ? '<button class="link" type="button" data-act="kid-del" style="color:var(--red)">Видалити дитину</button>' : ''}
+</div>
+<div class="dock"><button class="btn" type="button" data-act="kid-save">Зберегти</button></div>`;
+};
+async function kidSave(btn) {
+  const c = clientOf(P.cid);
+  if (!c) return;
+  const k = P.kid ? c.kids.find(x => x['Дитина ID'] === P.kid) || {} : {};
+  const v = cfVals();
+  if (!v["Ім'я"] && !v['Дата народження']) { showLiveErr('<p><b>Вкажіть ім\'я або дату народження.</b></p>'); return; }
+  const changes = {};
+  Object.keys(v).forEach(h => { if (v[h] !== String(k[h] || '').trim()) changes[h] = { from: k[h] || '', to: v[h] }; });
+  if (!Object.keys(changes).length) { back(); return; }
+  const r = await live(btn, 'child', Object.assign({ id: P.op, changes }, P.kid ? { childId: P.kid } : { clientId: c.id }));
+  if (!r) return;
+  P.op = uid();
+  upTab('dity', r.row, r.v);
+  if (r.conflicts && r.conflicts.length) {
+    showLiveErr(`<p><b>Частину не записано:</b> ${r.conflicts.map(x => `«${esc(x.field)}» уже змінено в таблиці: ${esc(x.now || 'порожньо')}`).join('; ')}.</p>`);
+    return;
+  }
+  toast('Збережено'); back();
+}
+async function kidDel(btn) {
+  if (!P.delAsk) { P.delAsk = 1; btn.textContent = 'Точно видалити? Натисніть ще раз'; return; }
+  const r = await live(btn, 'child', { id: P.op, childId: P.kid, remove: true });
+  if (!r) return;
+  dropTab('dity', P.kid); toast('Видалено'); back();
+}
+
+/* --- «Перевірте» --- */
+const WHY = { nokey: 'Немає телефону чи ніка, тож таблиця не знає, чиє це замовлення', multi: 'Цей контакт є в кількох клієнтів', lost: 'Клієнта з таким ID немає в базі' };
+const bindBtns = o => `<div class="row2"><button type="button" class="act" data-act="bind-pick" data-n="${esc(o['№'])}" data-sh="${esc(o._sheet)}">Вибрати клієнта</button><button type="button" class="act" data-act="bind-new" data-n="${esc(o['№'])}" data-sh="${esc(o._sheet)}">Новий клієнт</button></div>`;
+R.check = () => {
+  if (!hasBase()) return noClient('Перевірте');
+  const x = checkList();
+  const ord = x.orders.map(({ o, why, ids }) => `<div class="note warn"><b>№${numL(o)} · ${esc(o["Ім'я клієнта"] || 'Без імені')}${o['Дата свята'] ? ' · свято ' + esc(o['Дата свята']) : ''}</b>
+    <span>${esc(WHY[why])}${o._sheet === 'Клієнти' ? ' · архів замовлень' : ''}${o['Контакт'] ? ' · ' + esc(o['Контакт']) : ''}</span>
+    ${ids.map(id => { const c = CL().by[id]; return `<button type="button" class="act" data-act="bind-to" data-n="${esc(o['№'])}" data-sh="${esc(o._sheet)}" data-id="${esc(id)}">Це ${esc(c.name || 'клієнт')}, ${esc(id)}</button>`; }).join('')}
+    ${bindBtns(o)}
+    <button type="button" class="link" data-open="${esc(o['№'])}" style="align-self:flex-start;padding:4px 0">Відкрити №${numL(o)}</button></div>`).join('');
+  const dup = x.dup.map(({ c, a, b }) => `<div class="note warn"><b>${esc(c.name || c.id)}: два замовлення на близькі дати</b><div class="list">${histItem(a)}${histItem(b)}</div>
+    <span class="mute">Якщо одне зайве, відкрийте його і поставте статус «Помилково внесено».</span>
+    <button type="button" class="act" data-act="ns" data-a="№${esc(a['№'])}" data-b="№${esc(b['№'])}">Це різні замовлення</button></div>`).join('');
+  const same = x.same.map(({ a, b, why }) => `<div class="note warn"><b>Можливо, та сама людина</b><span class="mute">${esc(why)}</span><div class="list">${citemHtml(a)}${citemHtml(b)}</div>
+    <div class="row2"><button type="button" class="act" data-act="merge-ask" data-a="${esc(a.id)}" data-b="${esc(b.id)}">Об'єднати</button><button type="button" class="act" data-act="ns" data-a="${esc(a.id)}" data-b="${esc(b.id)}">Різні люди</button></div></div>`).join('');
+  const sec = (t, n, html, hint) => n ? `<section class="fsec"><div class="hd"><h3>${t}</h3><span class="cnt">${n}</span></div>${hint ? `<p class="small">${hint}</p>` : ''}${html}</section>` : '';
+  return `<div class="top line"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><span class="toptitle">Перевірте</span><button class="ib${S.loading ? ' spin' : ''}" id="reload" data-act="reload" aria-label="Оновити з таблиці">${ICON.refresh}</button></div>
+<div class="body"><h2 tabindex="-1">Перевірте</h2>
+${liveErr()}
+${checkCount(x) ? '' : '<p class="empty">Усе розібрано</p>'}
+${sec('Замовлення без клієнта', x.orders.length, ord, 'Якщо контакт збігається з одним клієнтом, таблиця прив\'язує замовлення сама щогодини. Тут лише те, що вона вирішити не може.')}
+${sec('Можливі дублі замовлень', x.dup.length, dup)}
+${sec('Можливо, той самий клієнт', x.same.length, same, 'Об\'єднання не скасувати: лишається старший ID, контакти, діти й замовлення переходять до нього.')}
+</div>`;
+};
+AFTER.check = autoLoad;
+async function bindDo(btn, nomer, sheet, payload) {
+  const r = await live(btn, 'bindOrder', Object.assign({ id: uid(), nomer: Number(nomer), sheet }, payload));
+  if (!r) return false;
+  if (r.v && r.row) { putRow(r.sheet, r.row, r.v); markFresh(r.sheet, r.row, r.v); }
+  toast(payload.newClient ? 'Створено клієнта ' + r.clientId : 'Прив\'язано до ' + r.clientId);
+  load(true);   // нові контакти й діти клієнта
+  return true;
+}
+async function notSameDo(btn, a, b) {
+  const r = await live(btn, 'notSame', { id: uid(), a, b });
+  if (!r) return;
+  S.data.notSame = r.notSame || []; clDirty(); store.set('data', S.data);
+  render(true);
+}
+
+/* --- Вибір клієнта: прив'язати замовлення або об'єднати --- */
+R.pick = () => {
+  const t = P.mode === 'bind' ? 'Чиє замовлення №' + P.nomer + '?' : 'З ким об\'єднати ' + P.from + '?';
+  return `<div class="top"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><span class="toptitle">${esc(P.mode === 'bind' ? 'Прив\'язати' : 'Об\'єднати')}</span><span class="sp44"></span></div>
+<div class="body"><h2 tabindex="-1">${esc(t)}</h2>
+<div class="search">${ICON.search}<input id="pq" type="search" placeholder="Ім'я, телефон, нік, дитина або 14.03" value="${esc(P.q || '')}" aria-label="Пошук клієнта" autocomplete="off"></div>
+${liveErr()}
+<div class="list" id="pitems">${pickItems()}</div></div>`;
+};
+function pickItems() {
+  const hits = clSearch(P.q || '', 40).filter(c => c.id !== P.from);
+  return hits.length ? hits.map(c => citemHtml(c, `data-pick="${esc(c.id)}"`)).join('') : '<p class="empty">Нікого не знайдено</p>';
+}
+AFTER.pick = () => { const q = $('#pq'); if (q) q.addEventListener('input', () => { P.q = q.value; $('#pitems').innerHTML = pickItems(); }); };
+
+R.mergeok = () => {
+  const a = clientOf(P.a), b = clientOf(P.b);
+  if (!a || !b) return noClient('Об\'єднання');
+  const keep = idNumOf(a.id) <= idNumOf(b.id) ? a : b, drop = keep === a ? b : a;
+  return `<div class="top"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><span class="toptitle">Об'єднати</span><span class="sp44"></span></div>
+<div class="body"><h2 tabindex="-1">Це та сама людина?</h2>
+<div class="list">${citemHtml(keep)}${citemHtml(drop)}</div>
+<div class="note gold"><b>Лишиться ${esc(keep.id)}</b><span>До нього перейдуть контакти, «Що знати», діти (${drop.kids.length}) і замовлення (${drop.orders.length}) клієнта ${esc(drop.id)}. Рядок ${esc(drop.id)} зникне з бази, його ID запишеться в «Колишні ID».</span><span class="mute">Скасувати не можна. Якщо в обох була та сама дитина, після об'єднання її буде двічі: зайву видаліть у картці.</span></div>
+${liveErr()}</div>
+<div class="dock"><button class="btn pink" type="button" data-act="merge-do">Об'єднати</button><button class="btn2" type="button" data-act="back">Скасувати</button></div>`;
+};
+async function mergeDo(btn) {
+  const r = await live(btn, 'merge', { id: P.op, a: P.a, b: P.b });
+  if (!r) return;
+  if (r.drop) {
+    upTab('baza', 0, r.v); dropTab('baza', r.drop);
+    const dc = S.data.dity && S.data.dity.headers ? S.data.dity.headers.indexOf(CID) : -1;
+    if (dc > -1) S.data.dity.rows.forEach(x => { if (String(x.v[dc]).trim() === r.drop) x.v[dc] = r.keep; });
+    const oc = col(CID);
+    if (oc > -1) ['zayavky', 'klienty'].forEach(k => S.data[k].forEach(x => { if (String(x.v[oc]).trim() === r.drop) x.v[oc] = r.keep; }));
+    clDirty(); store.set('data', S.data);
+  }
+  toast(r.already ? 'Уже об\'єднано' : 'Об\'єднано в ' + r.keep);
+  // Назад до екрана, з якого почали: картка клієнта (вже з поточним ID) або «Перевірте»
+  while (STACK.length > 1 && ['mergeok', 'pick'].includes(STACK[STACK.length - 1].name)) STACK.pop();
+  const top = STACK.pop() || { name: 'clients', params: {} };
+  if (top.name === 'client') top.params.id = r.keep;
+  go(top.name, top.params);
+  load(true);
+}
+
+/* --- Нове замовлення від клієнта бази --- */
+function whoPick(id) {
+  const c = clientOf(id);
+  if (!c) return;
+  whoClear();
+  META.clientId = c.id;
+  const A = META.whoAuto = {};
+  // Порожнє поле або підставлене раніше з минулих замовлень (onContactRepeat) замінюємо даними бази
+  const was = { "Ім'я клієнта": (META.auto || {}).name, 'Джерело': (META.auto || {}).src };
+  const fill = (h, v) => { if (v && (!String(D[h] || '').trim() || (was[h] && D[h] === was[h]))) { D[h] = v; A[h] = v; } };
+  fill("Ім'я клієнта", c.name);
+  if (c.phones[0] && !String(D['Контакт'] || '').trim()) { META.contactType = 'phone'; fill('Контакт', c.phones[0]); }
+  fill('Instagram', c.nicks[0] || '');
+  if (c.orders.length && L('Джерело').includes('Повторний')) fill('Джерело', 'Повторний');
+  if (c.kids.length === 1 && !String(D['Іменинник'] || '').trim()) kidFill(c.kids[0]);
+  saveDraft();
+}
+// Дитина в «Іменинник»: вік, який виповниться (якщо ДН у найближчі 4 місяці), інакше поточний
+function kidFill(k) {
+  const A = META.whoAuto || (META.whoAuto = {});
+  const b = bdayInfo(k);
+  const set = (h, v) => { D[h] = v; A[h] = v; };
+  set('Іменинник', k["Ім'я"] || '');
+  set('Вік', b ? String(b.days <= 120 ? b.turns : b.age) : '');
+  if (k['Стать']) set('Стать', k['Стать']);
+}
+// Скасувати вибір: прибрати лише те, що підставив вибір і що менеджер не міняв
+function whoClear() {
+  const A = META.whoAuto || {};
+  Object.keys(A).forEach(h => { if (String(D[h] || '') === String(A[h])) D[h] = ''; });
+  META.whoAuto = {}; META.clientId = '';
+}
+function whoStepHtml() {
+  const c = META.clientId ? clientOf(META.clientId) : null;
+  if (c) return `<div class="note ok"><b>Замовлення для ${esc(c.name || 'клієнта')} · ${esc(c.id)}</b><span>${esc(clContact(c))}${c.kids.length ? ' · ' + esc(c.kids.map(k => k["Ім'я"]).filter(Boolean).join(', ')) : ''}${c.done.length ? ' · свят: ' + c.done.length : ''}</span>
+    <button type="button" class="act" data-act="who-clear">Інший клієнт</button></div>`;
+  return `<p class="small">Постійний клієнт? Знайдіть його, і CRM підставить ім'я, контакти й дітей. Якщо новий, натисніть «Новий клієнт».</p>
+<div class="search">${ICON.search}<input id="wq" type="search" placeholder="Ім'я, телефон, нік або дитина" value="${esc(META.wq || '')}" aria-label="Пошук клієнта" autocomplete="off"></div>
+<div class="list" id="witems">${whoItems()}</div>`;
+}
+function whoItems() {
+  const q = String(META.wq || '').trim();
+  if (!q) return '';
+  const hits = clSearch(q, 20);
+  return hits.length ? hits.map(c => citemHtml(c, `data-act="who-pick" data-id="${esc(c.id)}"`)).join('') : '<p class="empty">Нікого не знайдено. Це новий клієнт.</p>';
+}
+AFTER.step = () => { const q = $('#wq'); if (q) q.addEventListener('input', () => { META.wq = q.value; $('#witems').innerHTML = whoItems(); }); };
+function kidChips() {
+  const c = META.clientId ? clientOf(META.clientId) : null;
+  if (!c || !c.kids.length) return '';
+  return `<div class="field"><span class="flabel">Діти клієнта</span><div class="chips">${c.kids.map(k => { const b = bdayInfo(k); return `<button type="button" class="chip sm" data-act="kid-fill" data-id="${esc(k['Дитина ID'])}" aria-pressed="${D['Іменинник'] === k["Ім'я"]}">${esc(k["Ім'я"] || 'Без імені')}${b ? ' · буде ' + b.turns : ''}</button>`; }).join('')}</div></div>`;
+}
+// Підказка в кроці «Клієнт» нової заявки: контакт уже є в базі
+function baseHint() {
+  if (P.mode !== 'new' || META.clientId || !hasBase()) return '';
+  const ins = normInsta(D['Instagram']);
+  const keys = orderKeys({ 'Контакт': [D['Контакт'], ins ? 'instagram.com/' + ins : ''].filter(Boolean).join(', ') });
+  if (!keys.phones.length && !keys.nicks.length) return '';
+  const ids = clMatchIds(keys);
+  if (ids.length === 1) {
+    const c = CL().by[ids[0]];
+    return `<div class="note ok"><b>Є в базі: ${esc(c.name || 'без імені')} · ${esc(c.id)}</b><span>${c.done.length ? 'свят: ' + c.done.length : 'замовлень: ' + c.orders.length}${c.kids.length ? ' · ' + esc(c.kids.map(k => k["Ім'я"]).filter(Boolean).join(', ')) : ''}</span><button type="button" class="act" data-act="who-pick" data-id="${esc(c.id)}">Так, це цей клієнт</button></div>`;
+  }
+  if (ids.length > 1) return `<div class="note warn"><span>Цей контакт є в кількох клієнтів бази (${ids.map(esc).join(', ')}). Замовлення збережеться без клієнта, розберіться потім у «Клієнти → Перевірте».</span></div>`;
+  return '';
+}
+
+/* --- Клієнт у картці замовлення --- */
+function orderClientHtml(o) {
+  if (!hasBase() || col(CID) < 0 || Number(o['№']) < 0 || o['Статус'] === MISTAKE) return '';
+  const c = clientOf(o[CID]);
+  if (c) {
+    const know = String(c.r['Що знати'] || '').trim();
+    return `<button type="button" class="item" data-client="${esc(c.id)}"><span class="l1"><span class="nm">Клієнт: ${esc(c.name || 'без імені')}</span><span class="no">${esc(c.id)} →</span></span>
+      <span class="l2">${c.done.length ? `<span>свят: ${c.done.length}</span>` : '<span>проведених свят ще немає</span>'}${c.kids.length ? `<span>${esc(c.kids.map(k => k["Ім'я"]).filter(Boolean).join(', '))}</span>` : ''}</span>
+      ${know ? `<span class="l2" style="color:var(--gold)">Що знати: ${esc(know.length > 90 ? know.slice(0, 90) + '…' : know)}</span>` : ''}</button>`;
+  }
+  return `<div class="note gold"><b>Не прив'язано до клієнта бази</b><span class="mute">${String(o[CID] || '').trim() ? (S.loading ? 'Клієнт ' + esc(o[CID]) + ': оновлюю дані…' : 'Клієнта ' + esc(o[CID]) + ' немає в базі.') : 'Якщо контакт однозначний, таблиця прив\'яже сама протягом години.'}</span>${bindBtns(o)}${liveErr()}</div>`;
+}
+const whoSum = () => { const c = META.clientId ? clientOf(META.clientId) : null; return `<dt>Клієнт</dt><dd>${c ? esc((c.name || 'без імені') + ' · ' + c.id) : META.clientId ? esc(META.clientId) : 'новий або знайдеться за контактом'}</dd>`; };
+async function pickDo(btn, id) {
+  if (P.mode === 'bind') { if (await bindDo(btn, P.nomer, P.sheet, { clientId: id })) back(); }
+  else if (P.mode === 'merge') go('mergeok', { a: P.from, b: id, op: uid() });
+}
+
 /* ====== ПОДІЇ ====== */
 view.addEventListener('click', e => {
   const t = e.target.closest('button,a');
   if (!t) return;
   const d = t.dataset;
   if (flowClick(t, d)) return;
+  if (d.client) { go('client', { id: d.client }); return; }
+  if (d.kid) { go('kid', { cid: P.id, kid: d.kid, op: uid() }); return; }
+  if (d.pick) { pickDo(t, d.pick); return; }
   if (d.open) { go('card', { nomer: Number(d.open) }, cur === 'done'); return; }
   if (d.tab) { if (cur !== d.tab) { STACK.length = 0; go(d.tab); } else window.scrollTo(0, 0); return; }
   if (d.day) { S.calDay = d.day; render(true); return; }
@@ -2522,7 +3153,7 @@ view.addEventListener('click', e => {
     case 'new': { const dr = store.get('draft'); if (draftHasData(dr)) go('draft'); else startNew(true); break; }
     case 'new-fresh': store.del('draft'); STACK.length = 0; STACK.push({ name: 'today', params: {} }); startNew(true); break;
     case 'draft-continue': STACK.pop(); startNew(false); break;
-    case 'draft-new': store.del('draft'); STACK.pop(); startNew(true); break;
+    case 'draft-new': { const cid = P.cid; store.del('draft'); STACK.pop(); startNew(true, cid); break; }
     case 'next': case 'skip': case 'jump': {
       const steps = newSteps(); const st = steps[P.i];
       if (d.act !== 'skip' && !validate(st.f)) return;
@@ -2536,6 +3167,23 @@ view.addEventListener('click', e => {
     case 'status': case 'nextc': openEdit(d.act); break;
     case 'after-next': P.after = d.v; render(true); break;
     case 'save-edit': saveEdit(); break;
+    case 'check': go('check'); break;
+    case 'client-edit': go('cedit', { id: P.id, op: uid() }); break;
+    case 'client-save': clientSave(t); break;
+    case 'kid-new': go('kid', { cid: P.id, kid: '', op: uid() }); break;
+    case 'kid-save': kidSave(t); break;
+    case 'kid-del': kidDel(t); break;
+    case 'new-for': { const dr = store.get('draft'); if (draftHasData(dr)) go('draft', { cid: P.id }); else startNew(true, P.id); break; }
+    case 'bind-pick': go('pick', { mode: 'bind', nomer: Number(d.n), sheet: d.sh, q: '' }); break;
+    case 'bind-new': bindDo(t, d.n, d.sh, { newClient: true }).then(ok => { if (ok) render(true); }); break;
+    case 'bind-to': bindDo(t, d.n, d.sh, { clientId: d.id }).then(ok => { if (ok) render(true); }); break;
+    case 'ns': notSameDo(t, d.a, d.b); break;
+    case 'merge-ask': go('mergeok', { a: d.a, b: d.b, op: uid() }); break;
+    case 'merge-pick': go('pick', { mode: 'merge', from: P.id, q: '' }); break;
+    case 'merge-do': mergeDo(t); break;
+    case 'who-pick': whoPick(d.id); render(true); break;
+    case 'who-clear': whoClear(); saveDraft(); render(true); break;
+    case 'kid-fill': { const c = clientOf(META.clientId); const k = c && c.kids.find(x => x['Дитина ID'] === d.id); if (k) { kidFill(k); saveDraft(); render(true); } break; }
   }
 });
 view.addEventListener('input', e => {
