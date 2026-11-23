@@ -287,7 +287,7 @@ button.note{width:100%;border-width:1px;cursor:pointer;text-align:left;color:var
 <div id="toast" role="status"></div>
 <script>
 /* ====== НАЛАШТУВАННЯ ====== */
-const SITE_VERSION = '8 · етап 3.3 · 23.11.2026';   // видно в «Налаштуваннях» (аудит І7)
+const SITE_VERSION = '9 · етап 3.5 · 23.11.2026';   // видно в «Налаштуваннях» (аудит І7)
 const STALE_MS = 5 * 60 * 1000;   // дані старші за 5 хв оновлюються у фоні при переході між екранами (аудит Ш4, було 60 с)
 const CONFIG = {
   endpoint: 'https://script.google.com/macros/s/AKfycbxIAF93Esi0pIZAHZ-MFCNekx3zc0tq7BsMIOwTG9rNhPtwmePNmAyoCGjX4UPe2ZFoYw/exec',   // адреса вебзастосунку Apps Script «ТОШО CRM» (…/exec)
@@ -1643,6 +1643,8 @@ const TPL = [
   // Після свята
   { k: 'after', g: 'Після свята', t: 'Як пройшло свято', p: 'П11', note: 'Через 3 дні. Відгук просимо тільки після теплої відповіді.', m: ['{mama}, вітаю! Як {kidDat} сподобалось свято? Нам важливо знати, що вдалося, а що можна зробити ще краще 🤍'] },
   { k: 'review', g: 'Після свята', t: 'Тепла відповідь: відгук і фото', p: 'П11', note: 'Якщо була знижка за відеовідгук, нагадуємо саме про відео. Відповідь про фото запишіть у нотатку.', m: ['Дуже раді це чути! Будемо вдячні за кілька речень або коротке відео про свято.\n\nІ ще: можна показати кілька кадрів зі свята в Instagram? Якщо хочете, опублікуємо без облич 😊', 'А є ще іменинники в родині? Напишу заздалегідь ☺️'] },
+  { k: 'camp', g: 'Нагадування і закриття', t: 'Кампанія: перше повідомлення', p: 'Кампанія', note: 'Перше, якщо ми тоді не відповіли; друге, якщо варіанти надсилали. Що саме питала, дивіться в «Що знати». Торішніх цін не згадуйте.', m: ['{mama}, вітаю! Це {me} з ТОШО́!? івент ✨ Торік ви писали нам про свято {dochsyn}, а ми так і не відповіли. Вибачте, будь ласка, це наша помилка 🙏', '{mama}, вітаю! Це {me} з ТОШО́!? івент ✨ Торік ми підбирали для вас програму на свято {dochsyn}.', 'Цього року знову плануєте святкувати? Підкажіть, скільки виповнюється і на коли, і я підберу варіанти під вашу компанію 🤍'] },
+  { k: 'camp2', g: 'Нагадування і закриття', t: 'Кампанія: нагадування', p: 'Кампанія', note: 'Одне нагадування, якщо на перше повідомлення тиша. Після нього клієнту більше не пишемо.', m: ['{mama}, нагадаю про себе 🙂 Якщо свято {dochsyn} цього року ще в планах, напишіть дату, і я перевірю, чи вільна команда.'] },
   { k: 'repeat6w', g: 'Після свята', t: 'Повторний продаж за 6 тижнів до ДН', p: 'П13', note: 'Спершу тепло, без пропозиції в лоб. Якщо даних про минуле свято немає, частину після двокрапки пропустіть.', m: ['{mama}, вітаю! Це Анна з ТОШО́!? івент ✨ Пам\'ятаємо, як минулого року святкували день народження {kidGen}: {lastGame}.', 'Через півтора місяця в {kidGen} знову свято. Плануєте святкувати? Підберемо ігри, яких ваша компанія ще не бачила 🤍'] },
 
   // Під ключ
@@ -2047,20 +2049,139 @@ R.today = () => {
   const flagged = due.filter(x => flagOf(x.o)), mine = due.filter(x => !flagOf(x.o));
   const waiting = items.filter(x => daysTo(x.s.due) > 0 && x.o._sheet === 'Заявки').sort((a, b) => daysTo(a.s.due) - daysTo(b.s.due) || tm(a).localeCompare(tm(b)));
   const sec = (t, list) => list.length ? `<section class="fsec"><div class="hd"><h3>${t}</h3><span class="cnt">${list.length}</span></div>${list.map(taskCard).join('')}</section>` : '';
+  const cw = cwItems();
   const done = (store.get('done_' + fmtD(now)) || 0);
   const at = S.data.at ? new Date(S.data.at) : null;
   return `${topMain()}
 <div class="body"><h1 tabindex="-1">Сьогодні</h1><p class="lead">${WEEKDAYS[now.getDay()]}, ${esc(fmtD(now))}${S.who ? ' · ' + esc(S.who) : ''}</p>
-${due.length ? '' : '<div class="note ok"><b>На сьогодні все зроблено</b><span class="mute">Наступні задачі з\'являться самі в дату кроку. Нижче: хто й коли.</span></div>'}
+${due.length || cw.length ? '' : '<div class="note ok"><b>На сьогодні все зроблено</b><span class="mute">Наступні задачі з\'являться самі в дату кроку. Нижче: хто й коли.</span></div>'}
 ${sec('⚑ Передано Юлії', flagged)}
 ${sec('Зробити сьогодні', mine)}
+${cw.length ? `<section class="fsec"><div class="hd"><h3>Написати клієнтам</h3><span class="cnt">${cw.length}</span></div>${cw.map(cwCard).join('')}</section>` : ''}
 ${waiting.length ? `<details class="fwait"><summary><h3>Чекаємо клієнта</h3><span class="cnt">${waiting.length}</span></summary>${waiting.map(x => `<button type="button" class="wrow" data-open="${esc(x.o['№'])}"><span class="n">${esc(x.o["Ім'я клієнта"] || 'Без імені')} · №${numL(x.o)}</span><span class="d">${esc(WEEKDAYS[parseD(x.s.due).getDay()].slice(0, 2))} ${esc(x.s.due.slice(0, 5))}${x.s.time ? ' ' + esc(x.s.time) : ''}</span><span class="s">${esc(x.o['Статус'] || '')} → ${esc(FLOW[x.s.key].label)}</span></button>`).join('')}</details>` : ''}
-<div class="stats"><div><b>${done}</b><span>зроблено сьогодні</span></div><div><b>${due.length}</b><span>лишилось на сьогодні</span></div><div><b>${waiting.length}</b><span>чекають клієнта</span></div></div>
+<div class="stats"><div><b>${done}</b><span>зроблено сьогодні</span></div><div><b>${due.length + cw.length}</b><span>лишилось на сьогодні</span></div><div><b>${waiting.length}</b><span>чекають клієнта</span></div></div>
 ${at ? `<p class="stamp">Дані з таблиці на ${pad(at.getHours())}:${pad(at.getMinutes())}</p>` : ''}
 </div>${navHtml('today')}`;
 };
 AFTER.today = autoLoad;
 const countDone = () => { const k = 'done_' + fmtD(new Date()); store.set(k, (store.get(k) || 0) + 1); };
+
+/* ====== Написати клієнту (етап 3.5) ======
+   «Написати» в «Базі клієнтів» — задача в «Сьогодні», коли дата настала й у клієнта немає активного замовлення.
+   Заявка з'являється лише тоді, коли клієнт відповів («Відповіла» → нове замовлення з картки клієнта).
+   Що зроблено, пишеться рядком у «Що знати»: «23.11 10:15 Юлія: Direct 2025: написали, нагадати 26.11» */
+const campOf = c => listOf(c.r['Кампанія']).slice(-1)[0] || '';
+const cwTag = c => campOf(c) ? campOf(c) + ': ' : '';
+const cwStage = c => (String(c.r['Що знати'] || '').includes(cwTag(c) + 'написали') ? 2 : 1);
+function cwItems() {
+  if (!hasBase()) return [];
+  const t0 = today0();
+  return CL().list.filter(c => { const d = parseD(c.r['Написати']); return d && d <= t0 && !c.active.length; })
+    .sort((a, b) => parseD(a.r['Написати']) - parseD(b.r['Написати']));
+}
+// Замовлення-заготовка для текстів: ім'я, дитина, стать
+function cwOrder(c) {
+  const k = c.kids.find(x => x["Ім'я"]) || c.kids[0] || {};
+  const last = c.orders[0] || {};
+  return { '№': c.id, "Ім'я клієнта": c.name, 'Іменинник': k["Ім'я"] || '', 'Стать': k['Стать'] || last['Стать'] || '', 'Контакт': c.phones.join(', ') };
+}
+const cwMsgs = c => fillMsgs(cwStage(c) === 2 ? 'camp2' : 'camp', cwOrder(c)).map(m => String(m).replace(/\[доньки \/ сина\]/g, 'дитини'));
+function cwCard(c) {
+  const kids = c.kids.map(k => [k["Ім'я"], kidText(k)].filter(Boolean).join(': ')).join(' · ');
+  const know = String(c.r['Що знати'] || '').split('\n').map(x => x.trim()).filter(Boolean);
+  return `<article class="ftask">
+    <div class="l1"><button type="button" class="nm" data-client="${esc(c.id)}">${esc(c.name || 'Без імені')}</button><span class="no">${esc(c.id)}</span></div>
+    <div class="stp">${cwStage(c) === 2 ? 'Нагадати клієнту' : 'Написати клієнту'}</div>
+    <div class="wh">${campOf(c) ? 'Кампанія ' + esc(campOf(c)) + '. ' : ''}Заявки ще немає, вона з'явиться, коли клієнт відповість.</div>
+    <div class="l2">${dueBadge({ due: c.r['Написати'] })}${kids ? `<span>${esc(kids)}</span>` : ''}</div>
+    ${know.length ? `<div class="cm">${esc(know[0])}</div>` : ''}
+    <div class="fa"><button type="button" class="main" data-cw="${esc(c.id)}">Написати</button><button type="button" data-cwans="${esc(c.id)}">Відповіла</button><button type="button" class="more" data-cwmore="${esc(c.id)}" aria-label="Інше">⋯</button></div>
+  </article>`;
+}
+R.cw = () => {
+  const c = clientOf(P.id);
+  if (!c) return noClient(P.id);
+  if (c.id !== P.id) P.id = c.id;
+  const st = cwStage(c);
+  P.msgs = cwMsgs(c);
+  const t = TPLk(st === 2 ? 'camp2' : 'camp');
+  const holes = P.msgs.join(' ').match(/\[[^\]\n]+\]/g) || [];
+  const know = String(c.r['Що знати'] || '').trim();
+  const dialog = c.other.find(x => /instagram\.com\/direct\//i.test(x));
+  const next = addDays(3);
+  return `<div class="top"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><span class="toptitle">${esc(c.id)} · ${esc(c.name || '')}</span><span class="sp44"></span></div>
+<div class="body"><h2 tabindex="-1">${st === 2 ? 'Нагадати клієнту' : 'Написати клієнту'}</h2>
+<p class="lead">${campOf(c) ? 'Кампанія ' + esc(campOf(c)) + ' · ' : ''}написати ${esc(c.r['Написати'] || 'сьогодні')}</p>
+${know ? `<div class="note gold"><b>Що знати</b><span style="white-space:pre-line">${esc(know)}</span></div>` : ''}
+${c.kids.length ? `<p class="small">${c.kids.map(k => esc((k["Ім'я"] || 'дитина') + ': ' + kidText(k))).join('<br>')}</p>` : ''}
+${t && t.note ? `<div class="note gold"><span>${esc(t.note)}</span></div>` : ''}
+${holes.length ? `<div class="note warn"><span>Допишіть місця в [дужках]: ${holes.length}</span></div>` : ''}
+${msgsHtml(P.msgs)}
+${contactLinks({ _contact: c.phones.join(', '), _insta: c.nicks[0] || '' })}
+${dialog ? `<div class="acts" style="grid-template-columns:1fr"><a href="https://www.${esc(dialog.replace(/^https?:\/\/(www\.)?/i, ''))}" target="_blank" rel="noopener">${ICON.insta}Діалог у Direct</a></div>` : ''}
+<div class="then"><b>Після «Надіслала»</b> ${st === 2 ? 'більше не пишемо, задача зникне' : 'нагадаємо ' + esc(next.slice(0, 5)) + ', якщо клієнт мовчатиме'}. Відповіла — створіть заявку кнопкою «Відповіла».</div>
+${liveErr()}
+<button class="link" type="button" data-act="cw-more">Пізніше або не цікаво</button>
+</div>
+<div class="dock"><button class="btn" type="button" data-act="cw-sent">Надіслала</button><button class="btn2" type="button" data-act="cw-ans">Відповіла</button></div>`;
+};
+R.cwmore = () => {
+  const c = clientOf(P.id);
+  if (!c) return noClient(P.id);
+  if (c.id !== P.id) P.id = c.id;
+  const d = parseD(c.r['Написати']); const t = today0(); t.setDate(t.getDate() + 1);
+  const iso = x => x.getFullYear() + '-' + pad(x.getMonth() + 1) + '-' + pad(x.getDate());
+  return `<div class="top"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><span class="toptitle">${esc(c.id)} · ${esc(c.name || '')}</span><span class="sp44"></span></div>
+<div class="body"><h2 tabindex="-1">Пізніше або не цікаво</h2>
+<div class="field"><label class="flabel" for="cwdate">Написати пізніше</label><input id="cwdate" type="date" min="${iso(t)}" value="${d && d > today0() ? iso(d) : ''}"></div>
+<button class="btn2" type="button" data-act="cw-later">Нагадати в цю дату</button>
+<div class="spacer"></div>
+${liveErr()}
+<button class="btn2" type="button" data-act="cw-no" style="color:var(--red)">Не цікаво, більше не писати</button>
+<p class="small">Клієнт лишається в базі. Його ДН і минулі свята нікуди не зникають.</p>
+</div>`;
+};
+// «Написати» і рядок у «Що знати» одним записом
+async function cwWrite(btn, c, to, line) {
+  const know = String(c.r['Що знати'] || '').replace(/\s+$/, '');
+  const changes = { 'Написати': { from: c.r['Написати'] || '', to: to }, 'Що знати': { from: c.r['Що знати'] || '', to: (know ? know + '\n' : '') + stamp() + ': ' + line } };
+  const r = await live(btn, 'client', { id: P.op || uid(), clientId: c.id, changes });
+  if (!r) return false;
+  P.op = uid();
+  upTab('baza', r.row, r.v);
+  if (r.conflicts && r.conflicts.length) {
+    const msg = `<p><b>Не все записано:</b> ${r.conflicts.map(x => `«${esc(x.field)}» хтось змінив у таблиці`).join('; ')}.</p><p class="small">Оновіть дані й спробуйте ще раз.</p>`;
+    if ($('#liveerr')) showLiveErr(msg); else toast('Хтось змінив картку клієнта в таблиці. Оновіть дані', 5000);
+    return false;
+  }
+  return true;
+}
+async function cwSent(btn) {
+  const c = clientOf(P.id); if (!c) return;
+  const two = cwStage(c) === 2, to = two ? '' : addDays(3);
+  if (!await cwWrite(btn, c, to, cwTag(c) + (two ? 'нагадали, далі не пишемо' : 'написали, нагадати ' + to.slice(0, 5)))) return;
+  countDone(); toast(two ? 'Записано. Більше не пишемо' : 'Записано. Нагадаю ' + to.slice(0, 5)); STACK.length = 0; go('today');
+}
+async function cwAnswer(btn, id) {
+  const c = clientOf(id); if (!c) return;
+  if (!await cwWrite(btn, c, '', cwTag(c) + 'відповіла, нова заявка')) return;
+  countDone();
+  const dr = store.get('draft');
+  STACK.length = 0; STACK.push({ name: 'today', params: {} });
+  if (draftHasData(dr)) go('draft', { cid: c.id }); else startNew(true, c.id);
+}
+async function cwLater(btn) {
+  const c = clientOf(P.id); if (!c) return;
+  const d = isoToD(String(($('#cwdate') || {}).value || ''));
+  if (!d || parseD(d) <= today0()) { showLiveErr('<p><b>Виберіть дату, пізнішу за сьогодні.</b></p>'); return; }
+  if (!await cwWrite(btn, c, d, cwTag(c) + 'попросила пізніше, написати ' + d.slice(0, 5))) return;
+  toast('Нагадаю ' + d.slice(0, 5)); STACK.length = 0; go('today');
+}
+async function cwNo(btn) {
+  const c = clientOf(P.id); if (!c) return;
+  if (!await cwWrite(btn, c, '', cwTag(c) + 'не цікаво, більше не пишемо')) return;
+  countDone(); toast('Записано. Більше не пишемо'); STACK.length = 0; go('today');
+}
 
 /* ====== КАРТКА: блок «Зараз» ====== */
 function stepBox(o) {
@@ -2379,6 +2500,9 @@ function flowClick(t, d) {
     go('flow', { nomer: Number(d.flow) }); return true;
   }
   if (d.ans) { go('ans', { nomer: Number(d.ans) }); return true; }
+  if (d.cw) { go('cw', { id: d.cw, op: uid() }); return true; }
+  if (d.cwans) { P.op = P.op || uid(); cwAnswer(t, d.cwans); return true; }
+  if (d.cwmore) { go('cwmore', { id: d.cwmore, op: uid() }); return true; }
   if (d.more) { go('more', { nomer: Number(d.more) }); return true; }
   if (d.vocedit) { P.vocEdit = 1; render(true); setTimeout(() => { const i = $('#vocin'); if (i) i.focus(); }, 50); return true; }
   if (d.vocsave !== undefined || d.vocset !== undefined) { const o = findRec(P.nomer); const v = d.vocset !== undefined ? d.vocset : String(($('#vocin') || {}).value || '').trim(); store.set('voc_' + o['№'], v); P.vocEdit = 0; render(true); toast(v ? 'Звертання: ' + v : 'Без імені'); return true; }
@@ -2807,7 +2931,7 @@ R.client = () => {
   ${contactLinks({ _contact: c.phones.join(', '), _insta: c.nicks[0] || '' })}
   ${know ? `<div class="note gold"><b>Що знати</b><span style="white-space:pre-line">${esc(know)}</span><button type="button" class="act" data-act="client-edit">Змінити</button></div>`
     : '<button class="link" type="button" data-act="client-edit">Додати, що знати про клієнта</button>'}
-  ${r['Кампанія'] ? `<div class="note ok"><b>Кампанія ${esc(r['Кампанія'])}</b>${r['Написати'] ? `<span>Написати ${esc(r['Написати'])}</span>` : ''}</div>` : ''}
+  ${r['Кампанія'] || r['Написати'] ? `<div class="note ok"><b>${r['Кампанія'] ? 'Кампанія ' + esc(r['Кампанія']) : 'Написати клієнту'}</b>${r['Написати'] ? `<span>Написати ${esc(r['Написати'])}${c.active.length ? ' (є активне замовлення, задачі в «Сьогодні» немає)' : ''}</span><button type="button" class="act" data-cw="${esc(c.id)}">Тексти</button>` : '<span class="mute">Більше не пишемо</span>'}</div>` : ''}
   <button class="btn pink" type="button" data-act="new-for">${ICON.plus} Нове замовлення</button>
   <section class="box"><div class="hd"><h3>Діти${c.kids.length ? ' · ' + c.kids.length : ''}</h3><button type="button" class="ed" data-act="kid-new">Додати</button></div>
     ${c.kids.length ? `<div class="list">${c.kids.map(k => `<button type="button" class="item" data-kid="${esc(k['Дитина ID'])}"><span class="l1"><span class="nm">${esc(k["Ім'я"] || 'Без імені')}</span><span class="no">${esc(k['Стать'] || '')}</span></span><span class="l2"><span>${esc(kidText(k))}</span>${k['Що любить'] ? `<span>любить: ${esc(k['Що любить'])}</span>` : ''}</span></button>`).join('')}</div>` : '<p class="small">Дітей не додано</p>'}
@@ -3012,7 +3136,7 @@ function whoPick(id) {
   fill("Ім'я клієнта", c.name);
   if (c.phones[0] && !String(D['Контакт'] || '').trim()) { META.contactType = 'phone'; fill('Контакт', c.phones[0]); }
   fill('Instagram', c.nicks[0] || '');
-  if (c.orders.length && L('Джерело').includes('Повторний')) fill('Джерело', 'Повторний');
+  if ((c.orders.length || c.r['Кампанія']) && L('Джерело').includes('Повторний')) fill('Джерело', 'Повторний');
   if (c.kids.length === 1 && !String(D['Іменинник'] || '').trim()) kidFill(c.kids[0]);
   saveDraft();
 }
@@ -3180,6 +3304,11 @@ view.addEventListener('click', e => {
     case 'ns': notSameDo(t, d.a, d.b); break;
     case 'merge-ask': go('mergeok', { a: d.a, b: d.b, op: uid() }); break;
     case 'merge-pick': go('pick', { mode: 'merge', from: P.id, q: '' }); break;
+    case 'cw-sent': cwSent(t); break;
+    case 'cw-ans': cwAnswer(t, P.id); break;
+    case 'cw-more': go('cwmore', { id: P.id, op: uid() }); break;
+    case 'cw-later': cwLater(t); break;
+    case 'cw-no': cwNo(t); break;
     case 'merge-do': mergeDo(t); break;
     case 'who-pick': whoPick(d.id); render(true); break;
     case 'who-clear': whoClear(); saveDraft(); render(true); break;
