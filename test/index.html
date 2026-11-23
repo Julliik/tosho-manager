@@ -288,7 +288,7 @@ button.note{width:100%;border-width:1px;cursor:pointer;text-align:left;color:var
 <div id="toast" role="status"></div>
 <script>
 /* ====== НАЛАШТУВАННЯ ====== */
-const SITE_VERSION = '7 · етап 3.2 · 23.11.2026';   // видно в «Налаштуваннях» (аудит І7)
+const SITE_VERSION = '8 · етап 3.3 · 23.11.2026';   // видно в «Налаштуваннях» (аудит І7)
 const STALE_MS = 5 * 60 * 1000;   // дані старші за 5 хв оновлюються у фоні при переході між екранами (аудит Ш4, було 60 с)
 const CONFIG = {
   endpoint: 'https://script.google.com/macros/s/AKfycbxB7zLIJJc3KXAKdGicsGlVjIS6e4uXoFYV84CU5N6fqVqtLDWj8GRhHO1pSyM9ATJg7g/exec',   // адреса вебзастосунку Apps Script «ТОШО CRM» (…/exec)
@@ -1723,7 +1723,20 @@ function tplCtx(o) {
   const ad = d('Оголошення') + ' ' + d('Коментар');
   const btnAge = /10[–-]12/.test(ad) ? '10–12 років' : /13[–-]14/.test(ad) ? '13–14 років' : '';
   const st = d('Початок');
-  return {
+  // Повторний продаж клієнту з бази: діти з «Дітей», остання гра з проведених свят клієнта (етап 3.3)
+  const rs = o['Статус'] === '8. Проведено' ? repeatOf(o) : null;
+  if (rs && rs.kids) {
+    const kf = k => k['Стать'] ? k['Стать'] !== 'Хлопчик' : f;
+    const nm = k => String(k["Ім'я"] || '').split(/\s+/)[0];
+    const ks = rs.kids.filter(nm);
+    const c = clientOf(o[CID]);
+    const g = c && c.games[0] ? c.games[0].p : lastProg;
+    if (ks.length) return Object.assign(tplCtxBase(), { kid: ks.map(nm).join(' та '), kidGen: ks.map(k => gen(nm(k), kf(k))).join(' та '),
+      kidDat: ks.map(k => dat(nm(k), kf(k))).join(' та '), lastGame: g ? progFmt(g) : '' });
+    if (g) return Object.assign(tplCtxBase(), { lastGame: progFmt(g) });
+  }
+  return tplCtxBase();
+  function tplCtxBase() { return {
     mama: callName(o), kid, kidGen: gen(kid, f), kidDat: dat(kid, f),
     age: age || '', guests: num('Гостей') || '',
     date: pd ? pd.getDate() + ' ' + MONTHS_G[pd.getMonth()] : '', wd: pd ? WEEKDAYS[pd.getDay()] : '',
@@ -1740,7 +1753,7 @@ function tplCtx(o) {
     pay: (S.me.pay || '').trim() || 'Реквізити для оплати на рахунок Monobank:\n[реквізити, ім\'я та прізвище отримувача]',
     hl: (S.me.video || '').trim(),
     me: myName() || 'Юлія'
-  };
+  }; }
 }
 const PH = { mama: "ім'я клієнтки", kid: "ім'я дитини", kidGen: "ім'я дитини", kidDat: "ім'я дитини", age: 'вік', guests: 'гостей', date: 'дата', wd: 'день тижня',
   time: 'час', arrive: 'час приїзду команди', addr: 'адреса', program: 'програма', programRaw: 'програма', duration: 'тривалість', sum: 'сума', sumMinus: 'сума − 1 000', pre: 'передоплата', preGot: 'передоплата',
@@ -1837,18 +1850,57 @@ function stepOf(o) {
   const stored = BY_LABEL[String(o['Крок'] || '').trim()];
   const nc = o['Наступний контакт'], tm = String(o['Час контакту'] || '');
   if (o._sheet === 'Клієнти') {
-    const ak = parseD(o['Нагадати про ДН']);
-    if (!ak) return st === NB && !o['Причина відмови'] ? { key: 'noreason', due: addDays(0) } : null;
-    const n = Math.round((ak - today0()) / 864e5);
-    if (n > 0 || n < -14) return null;
-    if (stored === 'repeatsent' && repeatSentFor(o, ak)) return null;
-    return { key: 'repeat', due: fmtD(ak) };
+    if (!parseD(o['Нагадати про ДН']) && st === NB && !o['Причина відмови']) return { key: 'noreason', due: addDays(0) };
+    return repeatOf(o);
   }
   if (st === NB) return o['Причина відмови'] ? null : { key: 'noreason', due: addDays(0) };
-  if (st === '8. Проведено') return null;
+  if (st === '8. Проведено') return repeatOf(o);
   if (stored && FLOW[stored].sts.includes(st)) return { key: stored, due: nc || addDays(0), time: tm };
   const r0 = stepDefault(o, st, nc, tm); if (r0) r0.auto = 1; return r0;
 }
+/* Повторний продаж (аудит В6, етап 3.3). Клієнт з бази: одна задача на кожен ДН дитини з «Дітей», а не на кожне минуле замовлення.
+   Дата задачі = ДН мінус 6 тижнів, задача видна 14 днів, як і раніше. Діти, чиї задачі збіглися в часі, — одна задача з обома іменами.
+   Задача лише в клієнта з проведеним святом, без активного замовлення і без свята в межах 90 днів від цього ДН.
+   Дитині виповнюється 16 і більше — задачі немає (рішення Діма 23.11).
+   Задача й позначка «надіслано» живуть на останньому проведеному замовленні клієнта (крок «Повторний продаж надіслано», як було).
+   Клієнт без дітей з датою: від «Нагадати про ДН» останнього свята. Замовлення без клієнта: як раніше, від «Нагадати про ДН» */
+const REP_LEAD = 42, REP_SHOW = 14, REP_AGE = 16, REP_NEAR = 90;
+const recKey = o => o._sheet + '|' + o['№'];
+function repeatPlan() {
+  const m = CL();
+  if (m.rep) return m.rep;
+  const rep = m.rep = { by: {}, own: new Set() };
+  m.list.forEach(c => {
+    c.orders.forEach(o => rep.own.add(recKey(o)));
+    if (c.active.length || !c.done.length) return;
+    const anchor = c.done.slice().sort((a, b) => (parseD(b['Дата свята']) || 0) - (parseD(a['Дата свята']) || 0))[0];
+    const dated = c.kids.map(k => ({ k, b: bdayInfo(k) })).filter(x => x.b);
+    if (!dated.length) { rep.by[recKey(anchor)] = { legacy: 1 }; return; }
+    const near = x => c.orders.some(o => { const p = parseD(o['Дата свята']); return p && Math.abs(p - x.b.next) <= REP_NEAR * 864e5; });
+    const hot = dated.filter(x => x.b.days <= REP_LEAD && x.b.days >= REP_LEAD - REP_SHOW && x.b.turns < REP_AGE && !near(x))
+      .sort((a, b) => a.b.days - b.b.days);
+    if (!hot.length) return;
+    const ak = new Date(hot[0].b.next); ak.setDate(ak.getDate() - REP_LEAD);
+    rep.by[recKey(anchor)] = { ak, kids: hot.map(x => x.k), bd: hot.map(x => x.b) };
+  });
+  return rep;
+}
+function repeatOf(o) {
+  if (o['Статус'] !== '8. Проведено') return null;
+  const sent = ak => BY_LABEL[String(o['Крок'] || '').trim()] === 'repeatsent' && repeatSentFor(o, ak);
+  const p = repeatPlan(), x = p.by[recKey(o)];
+  if (p.own.has(recKey(o)) && !x) return null;
+  if (x && x.kids) return sent(x.ak) ? null : { key: 'repeat', due: fmtD(x.ak), kids: x.kids, bd: x.bd };
+  const ak = parseD(o['Нагадати про ДН']);
+  if (!ak) return null;
+  const n = Math.round((ak - today0()) / 864e5);
+  if (n > 0 || n < -REP_SHOW) return null;
+  const age = Number(digits(o['Вік'])) || 0;
+  if (age && age + 1 >= REP_AGE) return null;
+  return sent(ak) ? null : { key: 'repeat', due: fmtD(ak) };
+}
+// «ДН ≈14.03, буде 13» для задачі повторного продажу
+const repBd = s => (s.kids || []).map((k, i) => { const b = s.bd[i]; return `${k["Ім'я"] || 'дитина'}: ДН ${b.approx ? '≈' : ''}${pad(b.next.getDate())}.${pad(b.next.getMonth() + 1)}, буде ${b.turns}`; }).join(' · ');
 // Повторний продаж уже надіслано саме для цього нагадування? (аудит К5)
 // Дата надсилання: «Наступний контакт» (з етапу 2), для старих записів рядок «дд.мм …: Надіслано: повторний продаж» у коментарі.
 // Надіслане раніше ніж за 30 днів до нагадування належить минулому року: задача з'являється знову
@@ -1964,7 +2016,7 @@ function taskCard(x) {
     <div class="l1"><button type="button" class="nm" data-open="${esc(o['№'])}">${esc(who)}</button><span class="no">№${numL(o)}</span></div>
     <div class="stp">${esc(fl.label)}${s.key === 'call' && s.time ? ' о ' + esc(s.time) : ''}</div>
     <div class="wh">${esc(fl.what)}</div>
-    <div class="l2">${stPill(o['Статус'])}${dueBadge(s)}${fl.who === 'Юлія' ? '<span class="whotag">веде Юлія</span>' : ''}${o['Дата свята'] ? `<span>свято ${esc(o['Дата свята'].slice(0, 5))}</span>` : ''}</div>
+    <div class="l2">${stPill(o['Статус'])}${dueBadge(s)}${fl.who === 'Юлія' ? '<span class="whotag">веде Юлія</span>' : ''}${s.kids ? `<span>${esc(repBd(s))}</span>` : o['Дата свята'] ? `<span>свято ${esc(o['Дата свята'].slice(0, 5))}</span>` : ''}</div>
     ${flag ? `<div class="flagtxt">⚑ ${esc(flag)}</div>` : ''}
     ${o['Коментар'] ? `<div class="cm">${esc(lastLine(o['Коментар']))}</div>` : ''}
     <div class="fa"><button type="button" class="main" data-flow="${esc(o['№'])}">${esc(main)}</button>${canAns ? `<button type="button" data-ans="${esc(o['№'])}">Відповіла</button>` : '<span></span>'}<button type="button" class="more" data-more="${esc(o['№'])}" aria-label="Інше">⋯</button></div>
