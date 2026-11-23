@@ -1526,6 +1526,7 @@ function voc(n) {   // кличний відмінок для імені мам�
 function gen(n, f) {   // родовий: «свято Софії», «для Тимура»
   n = String(n || '').trim().split(/\s+/)[0]; if (!n) return '';
   if (f && /ов$/i.test(n)) return n + 'і';   // Любов → Любові
+  if (!f && /^ігор$/i.test(n)) return n + 'я';   // Ігор → Ігоря (м'яка група)
   if (/ія$/i.test(n)) return n.slice(0, -1) + 'ї';
   if (/я$/i.test(n)) return n.slice(0, -1) + 'і';
   if (/[гкх]а$/i.test(n)) return n.slice(0, -1) + 'и';
@@ -1538,6 +1539,7 @@ function gen(n, f) {   // родовий: «свято Софії», «для Т
 function dat(n, f) {   // давальний: «Софії 14», «Тимуру 10»
   n = String(n || '').trim().split(/\s+/)[0]; if (!n) return '';
   if (f && /ов$/i.test(n)) return n + 'і';   // Любов → Любові
+  if (!f && /^ігор$/i.test(n)) return n + 'ю';   // Ігор → Ігорю
   if (/га$/i.test(n)) return n.slice(0, -2) + 'зі';   // Ольга → Ользі
   if (/ка$/i.test(n)) return n.slice(0, -2) + 'ці';   // Ніка → Ніці
   if (/ха$/i.test(n)) return n.slice(0, -2) + 'сі';
@@ -1858,14 +1860,17 @@ function stepOf(o) {
   if (stored && FLOW[stored].sts.includes(st)) return { key: stored, due: nc || addDays(0), time: tm };
   const r0 = stepDefault(o, st, nc, tm); if (r0) r0.auto = 1; return r0;
 }
-/* Повторний продаж (аудит В6, етап 3.3). Клієнт з бази: одна задача на кожен ДН дитини з «Дітей», а не на кожне минуле замовлення.
-   Дата задачі = ДН мінус 6 тижнів, задача видна 14 днів, як і раніше. Діти, чиї задачі збіглися в часі, — одна задача з обома іменами.
+/* Повторний продаж (аудит В6, етап 3.3). Клієнт з бази: одна задача на ДН дитини з «Дітей», а не на кожне минуле замовлення.
+   Дата задачі = ДН мінус 6 тижнів, задача видна 14 днів, як і раніше. Діти з ДН у межах 30 днів від найближчого — одна задача з усіма іменами.
    Задача лише в клієнта з проведеним святом, без активного замовлення і без свята в межах 90 днів від цього ДН.
    Дитині виповнюється 16 і більше — задачі немає (рішення Діма 23.11).
-   Задача й позначка «надіслано» живуть на останньому проведеному замовленні клієнта (крок «Повторний продаж надіслано», як було).
-   Клієнт без дітей з датою: від «Нагадати про ДН» останнього свята. Замовлення без клієнта: як раніше, від «Нагадати про ДН» */
-const REP_LEAD = 42, REP_SHOW = 14, REP_AGE = 16, REP_NEAR = 90;
+   Задача й позначка «надіслано» живуть на останньому проведеному святі цих дітей (крок «Повторний продаж надіслано», як було).
+   Дитина без дати в «Дітях»: від «Нагадати про ДН» її останнього свята. Клієнт без жодної дитини з датою: від «Нагадати про ДН»
+   останнього свята. Замовлення без клієнта: як раніше, від «Нагадати про ДН» */
+const REP_LEAD = 42, REP_SHOW = 14, REP_AGE = 16, REP_NEAR = 90, REP_GROUP = 30;
 const recKey = o => o._sheet + '|' + o['№'];
+// Імена дітей із «Іменинника», як kidsFromOrder_ у бекенді: «Марія та Андрій» → два ключі
+const kidKeys = o => String(o['Іменинник'] || '').split(/\s*(?:,|;|\/|&|\+|\sта\s|\sі\s|\sи\s)\s*/).map(ckey).filter(Boolean);
 function repeatPlan() {
   const m = CL();
   if (m.rep) return m.rep;
@@ -1873,15 +1878,26 @@ function repeatPlan() {
   m.list.forEach(c => {
     c.orders.forEach(o => rep.own.add(recKey(o)));
     if (c.active.length || !c.done.length) return;
-    const anchor = c.done.slice().sort((a, b) => (parseD(b['Дата свята']) || 0) - (parseD(a['Дата свята']) || 0))[0];
-    const dated = c.kids.map(k => ({ k, b: bdayInfo(k) })).filter(x => x.b);
-    if (!dated.length) { rep.by[recKey(anchor)] = { legacy: 1 }; return; }
+    const done = c.done.slice().sort((a, b) => (parseD(b['Дата свята']) || 0) - (parseD(a['Дата свята']) || 0));
+    const dated = c.kids.map(k => ({ k, b: bdayInfo(k), key: ckey(k["Ім'я"]) })).filter(x => x.b);
+    const dkeys = dated.map(x => x.key).filter(Boolean);
+    // Без дати: останнє свято кожної дитини, якої немає серед дітей з датою; без жодної дати — просто останнє свято
+    const legacy = dated.length ? done.filter(o => { const n = kidKeys(o); return n.length && !n.some(x => dkeys.includes(x)); }) : done.slice(0, 1);
+    const seen = new Set();
+    legacy.forEach(o => { const k = kidKeys(o).join('|'); if (seen.has(k)) return; seen.add(k); rep.by[recKey(o)] = { legacy: 1 }; });
     const near = x => c.orders.some(o => { const p = parseD(o['Дата свята']); return p && Math.abs(p - x.b.next) <= REP_NEAR * 864e5; });
-    const hot = dated.filter(x => x.b.days <= REP_LEAD && x.b.days >= REP_LEAD - REP_SHOW && x.b.turns < REP_AGE && !near(x))
-      .sort((a, b) => a.b.days - b.b.days);
-    if (!hot.length) return;
-    const ak = new Date(hot[0].b.next); ak.setDate(ak.getDate() - REP_LEAD);
-    rep.by[recKey(anchor)] = { ak, kids: hot.map(x => x.k), bd: hot.map(x => x.b) };
+    const groups = [];
+    dated.filter(x => x.b.turns < REP_AGE && !near(x)).sort((a, b) => a.b.days - b.b.days).forEach(x => {
+      const g = groups[groups.length - 1];
+      if (g && x.b.days - g[0].b.days <= REP_GROUP) g.push(x); else groups.push([x]);
+    });
+    groups.forEach(g => {
+      if (g[0].b.days > REP_LEAD || g[0].b.days < REP_LEAD - REP_SHOW) return;
+      const ks = g.map(x => x.key);
+      const anchor = done.find(o => kidKeys(o).some(n => ks.includes(n))) || done.find(o => !rep.by[recKey(o)]) || done[0];
+      const ak = new Date(g[0].b.next); ak.setDate(ak.getDate() - REP_LEAD);
+      rep.by[recKey(anchor)] = { ak, kids: g.map(x => x.k), bd: g.map(x => x.b) };
+    });
   });
   return rep;
 }
