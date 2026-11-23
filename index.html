@@ -285,6 +285,8 @@ input[type="date"],input[type="time"]{color-scheme:dark;-webkit-appearance:none;
 <div id="toast" role="status"></div>
 <script>
 /* ====== НАЛАШТУВАННЯ ====== */
+const SITE_VERSION = '6 · етап 2 · 23.11.2026';   // видно в «Налаштуваннях» (аудит І7)
+const STALE_MS = 5 * 60 * 1000;   // дані старші за 5 хв оновлюються у фоні при переході між екранами (аудит Ш4, було 60 с)
 const CONFIG = {
   endpoint: 'https://script.google.com/macros/s/AKfycbxIAF93Esi0pIZAHZ-MFCNekx3zc0tq7BsMIOwTG9rNhPtwmePNmAyoCGjX4UPe2ZFoYw/exec',   // адреса вебзастосунку Apps Script «ТОШО CRM» (…/exec)
 };
@@ -412,28 +414,40 @@ async function api(action, payload) {
   return j;
 }
 
+// Рядки, які щойно повернув бекенд після запису: { №: { sheet, row, v, at } }.
+// Відповідь init, знята до запису, не має повертати на екран старий статус і крок (аудит К6)
+const FRESH = {};
+function markFresh(sheet, row, v) { FRESH[Number(v[0])] = { sheet, row, v, at: Date.now() }; }
+function refreshView() {
+  const typing = document.activeElement && document.activeElement.id === 'q';
+  if (cur === 'list' && !typing) render(true);
+  else if (cur === 'list') { const recs = allRecs(); $('#items').innerHTML = itemsHtml(recs, workRecs(recs)); }
+  else if ((cur === 'card' && P.nomer) || ['today', 'cal', 'team', 'report'].includes(cur)) render(true);
+}
 async function load(silent) {
-  if (S.loading) return;
+  // Завантаження вже йде: не губимо запит, а повторюємо одразу після нього (аудит К6)
+  if (S.loading) { S.loadAgain = S.loadAgain || (silent ? 'silent' : 'loud'); return; }
   S.loading = true;
+  const t0 = Date.now();
   const btn = $('#reload'); if (btn) btn.classList.add('spin');
   try {
     const d = await api('init');
     d.at = Date.now();
     S.data = d;
+    Object.keys(FRESH).forEach(n => { const f = FRESH[n]; if (f.at >= t0) putRow(f.sheet, f.row, f.v); else delete FRESH[n]; });
     store.set('data', d);
     S.outbox.forEach(applyLocal);   // зміни, що ще в черзі, не мають зникнути з екрана
-    const typing = document.activeElement && document.activeElement.id === 'q';
-    if (cur === 'list' && !typing) render(true);
-    else if (cur === 'list') { const recs = allRecs(); $('#items').innerHTML = itemsHtml(recs, workRecs(recs)); }
-    else if ((cur === 'card' && P.nomer) || ['today', 'cal', 'team', 'report'].includes(cur)) render(true);
+    refreshView();
   } catch (e) {
-    if (e.code === 'pin' || e.code === 'locked') { go('pin', { msg: e.message }, true); return; }
+    if (e.code === 'pin' || e.code === 'locked') { S.loadAgain = null; go('pin', { msg: e.message }, true); return; }
     if (!silent || !S.data) toast(e.message, 5000);
   } finally {
     S.loading = false;
     const b = $('#reload'); if (b) b.classList.remove('spin');
+    if (S.loadAgain) { const again = S.loadAgain; S.loadAgain = null; load(again === 'silent'); }
   }
 }
+const stale = () => S.data && (!S.data.at || Date.now() - S.data.at > STALE_MS);
 
 const H = () => (S.data && S.data.headers) || [];
 const col = h => H().indexOf(h);
@@ -983,7 +997,7 @@ AFTER.list = () => {
     $('#items').innerHTML = itemsHtml(recs, workRecs(recs));
     $('#filters').hidden = !!S.q.trim();
   });
-  if (S.data && (!S.data.at || Date.now() - S.data.at > 60000)) load(true);
+  if (stale()) load(true);
 };
 
 /* --- Нижнє меню --- */
@@ -994,7 +1008,7 @@ function navHtml(a) {
 const syncHtml = () => (S.problems.length ? `<button type="button" class="sync bad" data-act="problems">⚠ ${S.problems.length}</button>` : '')
   + (S.outbox.length ? `<button type="button" class="sync" data-act="flush" aria-label="Зміни ще зберігаються">⏳ ${S.outbox.length}</button>` : '');
 const topMain = () => `<div class="top line"><img class="logo" src="logo.svg" alt="ТОШО!?"><span class="toptitle"></span><span id="syncbox" style="display:flex;gap:6px">${syncHtml()}</span><button class="ib" data-act="settings" aria-label="Налаштування">${ICON.gear}</button><button class="ib${S.loading ? ' spin' : ''}" id="reload" data-act="reload" aria-label="Оновити з таблиці">${ICON.refresh}</button></div>`;
-const autoLoad = () => { if (S.data && (!S.data.at || Date.now() - S.data.at > 60000)) load(true); };
+const autoLoad = () => { if (stale()) load(true); };
 
 /* --- Сьогодні: див. «КРОКИ ВОРОНКИ» нижче --- */
 
@@ -1269,7 +1283,7 @@ R.card = () => {
   ${link && o._row ? `<a class="link" href="${esc(link)}" target="_blank" rel="noopener">Відкрити рядок у таблиці</a>` : ''}
 </div>`;
 };
-AFTER.card = () => { if (S.data && Date.now() - (S.data.at || 0) > 60000) load(true); };
+AFTER.card = autoLoad;
 
 // Редагування розділу картки, зміна статусу, наступний контакт
 const EDIT_SETS = {
@@ -1355,15 +1369,34 @@ function applyLocal(job) {
     if (['Чек, грн', 'Передоплата, грн'].includes(h)) v = money(digits(v));
     setCell(o, h, v);
   });
+  if (job.action === 'step') {
+    Object.keys(job.changes || {}).forEach(h => {
+      let v = job.changes[h].to;
+      if (['Чек, грн', 'Передоплата, грн'].includes(h)) v = money(digits(v));
+      setCell(o, h, v);
+    });
+    // Так само, як зробить бекенд: ⚑ першим рядком, нотатка в кінець коментаря
+    let c = String(o['Коментар'] || '');
+    if (job.flag !== undefined) c = withFlag(c, job.flag);
+    const line = job.note ? noteLine(job.at, job.note) : '';
+    if (line && !c.includes(line)) c = [c.trim(), line].filter(Boolean).join('\n');
+    if (c !== String(o['Коментар'] || '')) setCell(o, 'Коментар', c);
+  }
   if (job.action === 'note') {
     if (job.text) {
-      const d = new Date(job.at || Date.now());
-      const line = pad(d.getDate()) + '.' + pad(d.getMonth() + 1) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + (S.who && S.who !== 'Команда' ? ' ' + S.who : '') + ': ' + job.text;
+      const line = noteLine(job.at, job.text);
       if (!String(o['Коментар'] || '').includes(line)) setCell(o, 'Коментар', [o['Коментар'], line].filter(Boolean).join('\n'));
     }
     if (job.next !== undefined && job.next !== null) setCell(o, 'Наступний контакт', job.next);
     if (job.nextTime !== undefined && job.nextTime !== null) setCell(o, 'Час контакту', job.nextTime);
   }
+}
+const noteLine = (at, text) => { const d = new Date(at || Date.now()); return pad(d.getDate()) + '.' + pad(d.getMonth() + 1) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + (S.who && S.who !== 'Команда' ? ' ' + S.who : '') + ': ' + text; };
+function withFlag(c, flag) {   // як withFlag_ у бекенді: порожній flag знімає ⚑, текст ставить новий першим рядком
+  const lines = String(c || '').split('\n');
+  if (/^⚑/.test((lines[0] || '').trim())) lines.shift();
+  if (flag) lines.unshift('⚑ ЮЛІЇ: ' + String(flag).trim());
+  return lines.join('\n');
 }
 let flushing = false, flushT = 0;
 async function flush() {
@@ -1376,6 +1409,8 @@ async function flush() {
       const payload = job.action === 'create' ? { id: job.id, data: job.data, meta: job.meta }
         : job.action === 'note'
         ? { id: job.id, sheet: job.sheet, nomer: job.nomer, text: job.text, next: job.next, nextTime: job.nextTime }
+        : job.action === 'step'
+        ? Object.assign({ id: job.id, sheet: job.sheet, nomer: job.nomer, changes: job.changes, note: job.note || '' }, job.flag !== undefined ? { flag: job.flag } : {})
         : { id: job.id, sheet: job.sheet, nomer: job.nomer, changes: job.changes };
       let r;
       try { r = await api(job.action, payload); }
@@ -1392,7 +1427,7 @@ async function flush() {
       sent++;
       if (job.action === 'create') {
         S.data.zayavky = S.data.zayavky.filter(x => Number(x.v[0]) !== job.temp);
-        putRow('Заявки', r.row, r.v);
+        putRow('Заявки', r.row, r.v); markFresh('Заявки', r.row, r.v);
         STACK.forEach(x => { if (x.params && Number(x.params.nomer) === job.temp) x.params.nomer = r.nomer; });
         S.outbox.forEach(j => { if (Number(j.nomer) === job.temp) { j.nomer = r.nomer; j.sheet = 'Заявки'; } });   // нотатки, зроблені до появи №
         if (Number(P.nomer) === job.temp) { P.nomer = r.nomer; if (cur === 'done') P.rejected = r.rejected || []; }
@@ -1402,22 +1437,25 @@ async function flush() {
         if (['done', 'card', 'list', 'today'].includes(cur)) render(true);
         continue;
       }
-      putRow(r.sheet, r.row, r.v);
+      putRow(r.sheet, r.row, r.v); markFresh(r.sheet, r.row, r.v);
+      // Рядок з таблиці замінив локальний: зміни цього замовлення, що ще в черзі, накладаємо знову
+      S.outbox.filter(j => Number(j.nomer) === Number(job.nomer)).forEach(applyLocal);
       const msgs = [];
       (r.conflicts || []).forEach(c => msgs.push(`«${c.field}» хтось змінив у таблиці, там зараз: ${c.now || 'порожньо'}. Ваше значення не записано`));
       (r.rejected || []).forEach(c => msgs.push(`«${c.field}»: таблиця не прийняла «${c.value}»`));
+      if (job.action === 'step' && r.applied === false) msgs.unshift('Крок не записано, у таблиці нічого не змінилось. Відкрийте замовлення й зробіть крок ще раз');
       if (msgs.length) S.problems.push({ nomer: job.nomer, label: job.label || '', msg: msgs.join('. '), at: Date.now() });
       saveQueue();
     }
   } finally {
     flushing = false;
     saveQueue();
-    if (sent && !S.outbox.length) setTimeout(() => load(true), 400);
-    else if (sent && ['today', 'list', 'card', 'cal'].includes(cur)) render(true);
+    // Повний init після запису більше не потрібен: бекенд повертає оновлений рядок (аудит Ш4, К6)
+    if (sent && ['today', 'list', 'card', 'cal'].includes(cur)) refreshView();
   }
 }
 window.addEventListener('online', flush);
-document.addEventListener('visibilitychange', () => { if (!document.hidden) flush(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) return; flush(); if (S.pin && stale() && cur !== 'pin') load(true); });
 
 R.problems = () => `<div class="top"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><span class="toptitle">Не збережено</span><span class="sp44"></span></div>
 <div class="body"><h2 tabindex="-1">Що не дійшло до таблиці</h2>
@@ -1468,6 +1506,7 @@ function voc(n) {   // кличний відмінок для імені мам�
 }
 function gen(n, f) {   // родовий: «свято Софії», «для Тимура»
   n = String(n || '').trim().split(/\s+/)[0]; if (!n) return '';
+  if (f && /ов$/i.test(n)) return n + 'і';   // Любов → Любові
   if (/ія$/i.test(n)) return n.slice(0, -1) + 'ї';
   if (/я$/i.test(n)) return n.slice(0, -1) + 'і';
   if (/[гкх]а$/i.test(n)) return n.slice(0, -1) + 'и';
@@ -1479,6 +1518,10 @@ function gen(n, f) {   // родовий: «свято Софії», «для Т
 }
 function dat(n, f) {   // давальний: «Софії 14», «Тимуру 10»
   n = String(n || '').trim().split(/\s+/)[0]; if (!n) return '';
+  if (f && /ов$/i.test(n)) return n + 'і';   // Любов → Любові
+  if (/га$/i.test(n)) return n.slice(0, -2) + 'зі';   // Ольга → Ользі
+  if (/ка$/i.test(n)) return n.slice(0, -2) + 'ці';   // Ніка → Ніці
+  if (/ха$/i.test(n)) return n.slice(0, -2) + 'сі';
   if (/ія$/i.test(n)) return n.slice(0, -1) + 'ї';
   if (/я$/i.test(n)) return n.slice(0, -1) + 'і';
   if (/а$/i.test(n)) return n.slice(0, -1) + 'і';
@@ -1498,7 +1541,7 @@ function minFrom(re) {
    Кожен шаблон: k ключ, g група, t назва (як менеджер її шукає), p номер у скрипті, m повідомлення.
    Повідомлення {media: '…'} — відео чи фото, яке треба надіслати руками */
 const MEDIA = t => ({ media: t });
-const HI = 'Вітаю, мене звуть Анна, менеджер компанії ТОШО́!? івент ✨';
+const HI = 'Вітаю, мене звуть {me}, менеджер компанії ТОШО́!? івент ✨';   // {me}: ім'я з «Налаштувань», інакше Юлія (аудит І5)
 const PRICES = 'Одна гра триває 1,5 години, від 11 500 грн.\nСвято з двох частин, гра плюс друга гра чи майстер-клас, по тривалості до 3,5 годин, від 22 500 грн.\n\nПриїжджаємо туди, де зручно вам: додому, у кафе/ресторан чи на орендовану локацію.\n\nЯкщо хочете, щоб локацію, декор і фото взяли на себе ми, зробимо свято під ключ.';
 const TWO_FORMATS = 'Є два формати.\n\nПриїжджаємо до вас з авторською грою і ведучим.\nОдна гра триває 1,5 години, від 11 500 грн.\nСвято з двох частин, дві гри або гра й майстер-клас, до 3,5 годин, від 22 500 грн.\n\nАбо свято під ключ: локацію, декор, фото, кейтеринг і програму беремо на себе, а ви приходите як гостя. Від 80 000 грн, залежно від того, що берете: декор, фото, відео.';
 const G1012 = 'У 10–12 років найчастіше обирають дві наші гри.\n\n«Треш-коктейль»: команди крутять колесо фортуни й грають у категоріях, які їм випадають. Наприкінці переможці готують коктейль для тих, хто програв.\n\nНаша версія «Мафії»: створюємо атмосферу гри з реквізитом, масками та інтерактивами.';
@@ -1619,15 +1662,18 @@ const UA_NAMES = (() => {
   add('Дмитро', 'дмитрий,дима,dmytro,dmitry,dmitriy'); add('Сергій', 'сергей,serhii,sergey,sergii'); add('Олександр', 'александр,саша,oleksandr,alexander,alex,sasha');
   add('Андрій', 'андрей,andrii,andrey'); add('Олексій', 'алексей,oleksii,alexey'); add('Володимир', 'владимир,volodymyr,vladimir'); add('Ігор', 'игорь,ihor,igor');
   add('Євген', 'евгений,yevhen,evgeniy,evgeny'); add('Олег', 'oleh,oleg'); add('Віктор', 'виктор,viktor'); add('Микола', 'николай,mykola,nikolay'); add('Михайло', 'михаил,mykhailo,mikhail');
-  add('Іван', 'иван,ivan'); add('Павло', 'павел,pavlo,pavel'); add('Максим', 'maksym,maxim,max'); add('Роман', 'roman'); add('Артем', 'артём,artem'); add('Денис', 'denys,denis'); add('Юрій', 'юрий,yurii,yuriy');
+  add('Ілля', 'илья,illia,illya,ilya'); add('Іван', 'иван,ivan'); add('Павло', 'павел,pavlo,pavel'); add('Максим', 'maksym,maxim,max'); add('Роман', 'roman'); add('Артем', 'артём,artem'); add('Денис', 'denys,denis'); add('Юрій', 'юрий,yurii,yuriy');
   return m;
 })();
-const MALE_VOC = { 'Дмитро': 'Дмитре', 'Сергій': 'Сергію', 'Олександр': 'Олександре', 'Андрій': 'Андрію', 'Олексій': 'Олексію', 'Володимир': 'Володимире', 'Ігор': 'Ігорю', 'Євген': 'Євгене', 'Олег': 'Олегу', 'Віктор': 'Вікторе', 'Микола': 'Миколо', 'Михайло': 'Михайле', 'Іван': 'Іване', 'Павло': 'Павле', 'Максим': 'Максиме', 'Роман': 'Романе', 'Артем': 'Артеме', 'Денис': 'Денисе', 'Юрій': 'Юрію', 'Любов': 'Любове' };
+const MALE_VOC = { 'Ілля': 'Ілле', 'Дмитро': 'Дмитре', 'Сергій': 'Сергію', 'Олександр': 'Олександре', 'Андрій': 'Андрію', 'Олексій': 'Олексію', 'Володимир': 'Володимире', 'Ігор': 'Ігорю', 'Євген': 'Євгене', 'Олег': 'Олегу', 'Віктор': 'Вікторе', 'Микола': 'Миколо', 'Михайло': 'Михайле', 'Іван': 'Іване', 'Павло': 'Павле', 'Максим': 'Максиме', 'Роман': 'Романе', 'Артем': 'Артеме', 'Денис': 'Денисе', 'Юрій': 'Юрію', 'Любов': 'Любове' };
+// Перше слово профілю, яке не є ім'ям: «Мама Софии», «Mom of two» (аудит І6). Тоді звертаємось без імені
+const NOT_NAME = new Set('мама мамочка мамуля мамуся мама́ матуся мать mama mom mommy mum mother тато татко папа dad daddy бабуся бабушка баба дідусь дедушка granny'.split(' '));
 function uaName(raw) {
   const s = String(raw || '').trim();
   if (!s || /[_@.\d]/.test(s)) return '';
   const tok = s.replace(/^[^A-Za-zА-Яа-яІіЇїЄєҐґЁё]+/, '').split(/[\s,()]+/)[0] || '';
   const k = tok.toLowerCase().replace(/ё/g, 'ё');
+  if (NOT_NAME.has(k)) return '';
   if (UA_NAMES[k]) return UA_NAMES[k];
   if (/^[а-яіїєґ'’-]{2,}$/i.test(tok) && !/[ыэъё]/i.test(tok) && !/^и/i.test(tok)) return tok.charAt(0).toUpperCase() + tok.slice(1).toLowerCase();
   return '';
@@ -1673,7 +1719,8 @@ function tplCtx(o) {
     dochsyn: known ? (f ? 'доньки' : 'сина') : '', dlya: known ? (f ? 'Для доньки' : 'Для сина') : '',
     forAge: btnAge ? ' для ' + btnAge : '',
     pay: (S.me.pay || '').trim() || 'Реквізити для оплати на рахунок Monobank:\n[реквізити, ім\'я та прізвище отримувача]',
-    hl: (S.me.video || '').trim()
+    hl: (S.me.video || '').trim(),
+    me: myName() || 'Юлія'
   };
 }
 const PH = { mama: "ім'я клієнтки", kid: "ім'я дитини", kidGen: "ім'я дитини", kidDat: "ім'я дитини", age: 'вік', guests: 'гостей', date: 'дата', wd: 'день тижня',
@@ -1731,7 +1778,11 @@ const FLOW = {
                next: o => ({ st: NB, step: '', set: { 'Причина відмови': 'Перестали відповідати' }, note: 'Закрито: не внесли передоплату' }),
                alt: [['Почекати ще день', o => ({ step: 'paylast', in: 1, note: 'Чекаємо передоплату ще день' })]] },
   confirm:   { label: 'Підтвердити бронь', sts: ['6. Заброньовано'], who: 'Юлія', what: 'Передоплата прийшла. Надсилаємо підтвердження з усіма даними свята.', tpl: 'confirm', send: 'Надіслала підтвердження', then: 'напередодні свята до 18:00: нагадування клієнтці й картка команді',
-               next: o => { const pd = parseD(o['Дата свята']); const dd = pd ? new Date(pd) : null; if (dd) dd.setDate(dd.getDate() - 1); return { step: 'eve', date: dd && dd > today0() ? fmtD(dd) : addDays(0), time: '17:00', note: 'Надіслано: підтвердження броні (П10.1)' }; } },
+               next: o => {
+                 const pd = parseD(o['Дата свята']); const note = 'Надіслано: підтвердження броні (П10.1)';
+                 if (pd && pd <= today0()) return pd < today0() ? { step: 'rest', in: 0, note } : { step: 'morning', date: fmtD(pd), time: '09:30', note };   // свято сьогодні: одразу ранок (аудит В5)
+                 const dd = pd ? new Date(pd) : null; if (dd) dd.setDate(dd.getDate() - 1);
+                 return { step: 'eve', date: dd && dd > today0() ? fmtD(dd) : addDays(0), time: '17:00', note }; } },
   eve:       { label: 'Напередодні свята', sts: ['6. Заброньовано'], who: 'людина', what: 'Свято завтра. Нагадуємо клієнтці до 18:00 і надсилаємо картку команді.', tpl: 'eve', team: 1, send: 'Надіслала', then: 'у день свята вранці: ранкове повідомлення',
                next: o => ({ step: 'morning', date: o['Дата свята'] || addDays(1), time: '09:30', note: 'Надіслано: нагадування напередодні (П10.3), картка команді' }) },
   morning:   { label: 'Ранок свята', sts: ['6. Заброньовано'], who: 'людина', what: 'Сьогодні свято. Коротко підтверджуємо, коли буде команда.', tpl: 'morning', send: 'Надіслала', then: 'завтра позначити, чи отримали залишок',
@@ -1752,7 +1803,7 @@ const FLOW = {
   later2:    { label: 'Відкладено: тиждень тиші', sts: ['9. Відкладено'], what: 'Тиждень без відповіді після повернення. Останнє нагадування.', tpl: 'later2', send: 'Надіслала', then: 'якщо до завтра тиша, CRM запропонує закрити заявку',
                next: o => ({ step: 'close', in: 1, note: 'Надіслано: нагадування (П8.3)' }) },
   repeat:    { label: 'Повторний продаж', sts: ['8. Проведено'], what: 'За 6 тижнів до наступного дня народження. Спершу тепло, без пропозиції в лоб.', tpl: 'repeat6w', send: 'Надіслала', then: 'відповість — створіть нову заявку з джерелом «Повторний»',
-               next: o => ({ step: 'repeatsent', noDate: 1, note: 'Надіслано: повторний продаж (П13)' }) },
+               next: o => ({ step: 'repeatsent', in: 0, note: 'Надіслано: повторний продаж (П13)' }) },   // «Наступний контакт» = дата надсилання (аудит К5)
   repeatsent:{ label: 'Повторний продаж надіслано', sts: ['8. Проведено'], what: '', noText: 1 },
   noreason:  { label: 'Записати причину відмови', sts: [NB], what: 'Заявку закрито без причини. Без причини «Звіт» не покаже, чому втрачаємо клієнтів.', noText: 1 }
 };
@@ -1768,15 +1819,28 @@ function stepOf(o) {
   const nc = o['Наступний контакт'], tm = String(o['Час контакту'] || '');
   if (o._sheet === 'Клієнти') {
     const ak = parseD(o['Нагадати про ДН']);
-    if (!ak || stored === 'repeatsent') return st === NB && !o['Причина відмови'] ? { key: 'noreason', due: addDays(0) } : null;
+    if (!ak) return st === NB && !o['Причина відмови'] ? { key: 'noreason', due: addDays(0) } : null;
     const n = Math.round((ak - today0()) / 864e5);
     if (n > 0 || n < -14) return null;
+    if (stored === 'repeatsent' && repeatSentFor(o, ak)) return null;
     return { key: 'repeat', due: fmtD(ak) };
   }
   if (st === NB) return o['Причина відмови'] ? null : { key: 'noreason', due: addDays(0) };
   if (st === '8. Проведено') return null;
   if (stored && FLOW[stored].sts.includes(st)) return { key: stored, due: nc || addDays(0), time: tm };
   const r0 = stepDefault(o, st, nc, tm); if (r0) r0.auto = 1; return r0;
+}
+// Повторний продаж уже надіслано саме для цього нагадування? (аудит К5)
+// Дата надсилання: «Наступний контакт» (з етапу 2), для старих записів рядок «дд.мм …: Надіслано: повторний продаж» у коментарі.
+// Надіслане раніше ніж за 30 днів до нагадування належить минулому року: задача з'являється знову
+// У старих записах «Наступний контакт» лишився від замовлення, тому беремо пізнішу з двох дат
+function repeatSentFor(o, ak) {
+  const dates = [parseD(o['Наступний контакт'])];
+  const m = String(o['Коментар'] || '').split('\n').reverse().map(l => l.match(/^(\d{2})\.(\d{2})\b.*Надіслано: повторний продаж/)).find(Boolean);
+  if (m) { const t = today0(); const d = new Date(t.getFullYear(), +m[2] - 1, +m[1]); if (d > t) d.setFullYear(d.getFullYear() - 1); dates.push(d); }
+  const sent = dates.filter(Boolean).sort((a, b) => b - a)[0];
+  if (!sent) return false;
+  return sent >= new Date(ak.getFullYear(), ak.getMonth(), ak.getDate() - 30);
 }
 function stepDefault(o, st, nc, tm) {
   const pd = parseD(o['Дата свята']);
@@ -1787,9 +1851,8 @@ function stepDefault(o, st, nc, tm) {
     case '2. Уточнення': case '3. Пропозиція': return { key: 'n1', due: nc || addDays(0), time: tm };
     case '4. Дзвінок': return { key: 'call', due: nc || addDays(0), time: tm };
     case '5. Очікує оплату': return { key: 'pay', due: nc || addDays(0), time: tm };
-    case '6. Заброньовано':
-      if (pn === null) return { key: 'confirm', due: nc || addDays(0) };
-      if (pn >= 1) return { key: 'eve', due: shift(-1), time: '17:00' };
+    case '6. Заброньовано':   // статус поставив агент чи хтось у таблиці: спершу підтвердити бронь (аудит В5)
+      if (pn === null || pn >= 1) return { key: 'confirm', due: nc || addDays(0), time: tm };
       if (pn === 0) return { key: 'morning', due: fmtD(pd), time: '09:30' };
       return String(o['Залишок отримано']).trim() === 'Так' ? { key: 'after', due: shift(3) } : { key: 'rest', due: addDays(0) };
     case '7. Після свята': return { key: 'after', due: pd ? shift(3) : (nc || addDays(0)) };
@@ -1802,7 +1865,36 @@ const flagOf = o => { const l = String(o['Коментар'] || '').split('\n')[
 /* ====== ЗАПИС КРОКУ В ТАБЛИЦЮ ======
    Одна зміна рядка: статус, крок, дата й час контакту, інші поля, рядок історії в «Коментар», позначка ⚑ */
 function stamp() { const d = new Date(); return pad(d.getDate()) + '.' + pad(d.getMonth() + 1) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + (S.who && S.who !== 'Команда' ? ' ' + S.who : ''); }
+// Бекенд з дією step (версія 5 і новіша) повертає version в init. Старий бекенд: крок іде як раніше, через update
+const canStep = () => !!(S.data && S.data.version);
+function stepChanges(o, r) {
+  const want = {};
+  if (r.st !== undefined && r.st !== o['Статус']) want['Статус'] = r.st;
+  if (r.step !== undefined && hasStepCol()) want['Крок'] = r.step ? FLOW[r.step].label : '';
+  if (r.step && !r.noDate) {
+    want['Наступний контакт'] = r.date || addDays(r.in || 0);
+    want['Час контакту'] = r.time || '';
+  }
+  Object.assign(want, r.set || {});
+  const changes = {};
+  Object.keys(want).forEach(h => { if (h !== 'Коментар' && col(h) > -1 && String(want[h]) !== String(o[h] || '')) changes[h] = { from: o[h] || '', to: want[h] }; });
+  return changes;
+}
+// Крок: статус, крок, дата й поля пишуться разом або нічого (аудит К2).
+// «Коментар» не надсилаємо: нотатку й ⚑ бекенд накладає на те, що в таблиці зараз, тож текст агента не стає конфліктом
 function commit(o, r, label) {
+  if (!canStep()) return commitLegacy(o, r, label);
+  const changes = stepChanges(o, r);
+  let flag;   // undefined: ⚑ не чіпати; '': зняти; текст: поставити
+  if (r.flag !== undefined) flag = r.flag ? String(r.flag) : '';
+  else if (r.st && r.st !== o['Статус'] && /^⚑/.test(String(o['Коментар'] || '').trim()) && !r.keepFlag) flag = '';   // статус змінився: ⚑, яку бачила Юлія, знімаємо
+  const note = String(r.note || '').trim();
+  if (!Object.keys(changes).length && !note && flag === undefined) return;
+  const job = { action: 'step', nomer: o['№'], sheet: o._sheet, changes, note, at: Date.now(), label: label || 'крок' };
+  if (flag !== undefined) job.flag = flag;
+  enqueue(job);
+}
+function commitLegacy(o, r, label) {
   const want = {};
   if (r.st !== undefined && r.st !== o['Статус']) want['Статус'] = r.st;
   if (r.step !== undefined && hasStepCol()) want['Крок'] = r.step ? FLOW[r.step].label : '';
@@ -2247,20 +2339,31 @@ R.settings = () => {
   return `<div class="top"><button class="ib" data-act="back" aria-label="Назад">${ICON.back}</button><span class="toptitle">Налаштування</span><span class="sp44"></span></div>
 <div class="body"><h2 tabindex="-1">Налаштування</h2>
 <p class="small">Вхід: ${esc(S.who || '—')}. Ці дані зберігаються тільки на цьому телефоні й підставляються в шаблони повідомлень.</p>
-${f('name', "Ваше ім'я в привітанні", 'Наприклад, Марина')}
+${f('name', "Ваше ім'я в привітанні", 'Якщо порожньо: Юлія')}
 ${f('pay', 'Текст про реквізити для передоплати', PAY_DEFAULT, 1)}
-${f('memo', "Посилання на пам'ятку «Оплата, перенесення і скасування»", 'https://…')}
 ${f('video', 'Посилання на відео й відгуки (хайлайти)', 'https://instagram.com/…')}
-${f('tg', 'Ваше посилання на Telegram для переходу в месенджер', 'https://t.me/…')}
 <button class="btn" type="button" data-act="settings-save">Зберегти</button>
 <button class="link" type="button" data-act="logout">Вийти на цьому пристрої</button>
+<p class="small" id="versions">Версія сайту: ${esc(SITE_VERSION)}<br>Версія бекенду: ${esc((S.data && S.data.version) || 'стара, без номера')}</p>
 </div>`;
 };
 function saveSettings() {
-  ['name', 'pay', 'memo', 'video', 'tg'].forEach(k => { const el = $('#set_' + k); if (el) S.me[k] = el.value.trim(); });
+  ['name', 'pay', 'video'].forEach(k => { const el = $('#set_' + k); if (el) S.me[k] = el.value.trim(); });
+  delete S.me.memo; delete S.me.tg;   // мертві налаштування (аудит І8)
   store.set('me', S.me);
   toast('Збережено');
   back();
+}
+// Вихід: стираємо все, що CRM тримала на телефоні (PIN, база, чернетка, черга, «⚠», звертання, реквізити).
+// Лишається тільки id пристрою: за ним бекенд упізнає знайомий телефон (аудит К3, К4)
+function logout() {
+  try {
+    const keys = []; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.indexOf('tosho_') === 0 && k !== 'tosho_device') keys.push(k); }
+    keys.forEach(k => localStorage.removeItem(k));
+  } catch (e) {}
+  Object.keys(FRESH).forEach(k => delete FRESH[k]);
+  Object.assign(S, { pin: '', data: null, who: '', outbox: [], problems: [], me: {}, q: '' });
+  STACK.length = 0; go('pin');
 }
 function confirmLeave() { toast('Спершу дочекайтеся збереження змін (⏳ зверху)'); return false; }
 
@@ -2410,7 +2513,7 @@ view.addEventListener('click', e => {
     }
     case 'settings': go('settings'); break;
     case 'settings-save': saveSettings(); break;
-    case 'logout': if (S.outbox.length && !confirmLeave()) break; S.pin = ''; store.del('pin'); store.del('data'); S.data = null; STACK.length = 0; go('pin'); break;
+    case 'logout': if (S.outbox.length && !confirmLeave()) break; logout(); break;
     case 'tpl-log': tplLog(); break;
     case 'rep-copy': copyText(reportText()).then(ok => toast(ok ? 'Звіт скопійовано' : 'Не вдалося скопіювати')); break;
     case 'kart-copy': { const o = findRec(P.nomer); if (o) copyText(kartka(o).text).then(ok => toast(ok ? 'Скопійовано. Вставте в чат команди' : 'Не вдалося скопіювати, виділіть текст вручну')); break; }
